@@ -1330,17 +1330,6 @@
             var root;
             setElement();                                       // set website area
 
-            /*
-            if ( instance.root.parentNode ) {
-              instance.root.parent_node = instance.root.parentNode;
-              instance.root.temp_node = document.createElement( 'div' );
-              instance.root.temp_node.classList.add( 'temp' );
-              instance.root.parent_node.insertBefore( instance.root.temp_node, instance.root );
-              document.head.appendChild( instance.root );
-            }
-            console.log( instance.index, instance.root, instance.root.shadowRoot, instance.root.parent_node, instance.root.temp_node );
-            */
-
             // solve dependencies of created ccm instance
             solveDependencies( instance );
 
