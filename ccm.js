@@ -13,7 +13,7 @@
   const components = {};
   const waiting_lists = {};
 
-  const self = {
+  const RUNTIME = {
 
     version : () => '16.3.1',
     clear   : () => { cache = {}; },
@@ -22,7 +22,7 @@
 
       const args = [ ...arguments ];
 
-      const call = args.slice( 0 ); call.unshift( self.load );
+      const call = args.slice( 0 ); call.unshift( RUNTIME.load );
 
       let results = [];
 
@@ -36,17 +36,17 @@
 
         counter++;
 
-        resource = self.helper.clone( resource );
+        resource = RUNTIME.helper.clone( resource );
 
         if ( Array.isArray( resource ) ) { results[ i ] = []; serial( null ); return; }
 
-        if ( !self.helper.isObject( resource ) ) resource = { url: resource };
+        if ( !RUNTIME.helper.isObject( resource ) ) resource = { url: resource };
 
         const suffix = resource.url.split( '.' ).pop().toLowerCase();
 
         if ( !resource.context || resource.context === 'head' ) resource.context = document.head;
 
-        if ( self.helper.isInstance( resource.context ) ) resource.context = resource.context.element.parentNode;
+        if ( RUNTIME.helper.isInstance( resource.context ) ) resource.context = resource.context.element.parentNode;
 
         const operation = getOperation();
 
@@ -68,9 +68,9 @@
 
             const next = resource.shift();
 
-            if ( Array.isArray( next ) ) { next.push( serial ); self.load.apply( null, next ); }
+            if ( Array.isArray( next ) ) { next.push( serial ); RUNTIME.load.apply( null, next ); }
 
-            else self.load( next, serial );
+            else RUNTIME.load( next, serial );
 
           }
           else check();
@@ -137,8 +137,8 @@
         function loadCSS() {
 
           let element = { tag: 'link', rel: 'stylesheet', type: 'text/css', href: resource.url };
-          if ( resource.attr ) self.helper.integrate( resource.attr, element );
-          element = self.helper.html( element );
+          if ( resource.attr ) RUNTIME.helper.integrate( resource.attr, element );
+          element = RUNTIME.helper.html( element );
           resource.context.appendChild( element );
           element.onload = success;
 
@@ -159,8 +159,8 @@
           ccm.files[ filename ] = null;
 
           let element = { tag: 'script', src: resource.url };
-          if ( resource.attr ) self.helper.integrate( resource.attr, element );
-          element = self.helper.html( element );
+          if ( resource.attr ) RUNTIME.helper.integrate( resource.attr, element );
+          element = RUNTIME.helper.html( element );
           resource.context.appendChild( element );
           element.onload = () => {
 
@@ -182,7 +182,7 @@
 
           function jsonp() {
 
-            const callback = 'callback' + self.helper.generateKey();
+            const callback = 'callback' + RUNTIME.helper.generateKey();
             if ( !resource.params ) resource.params = {};
             resource.params.callback = 'ccm.callbacks.' + callback;
             ccm.callbacks[ callback ] = data => {
@@ -192,8 +192,8 @@
             };
 
             let element = { tag: 'script', src: buildURL( resource.url, resource.params ) };
-            if ( resource.attr ) self.helper.integrate( resource.attr, element );
-            element = self.helper.html( element );
+            if ( resource.attr ) RUNTIME.helper.integrate( resource.attr, element );
+            element = RUNTIME.helper.html( element );
             element.src = element.src.replace( /&amp;/g, '&' );  // TODO: Why is this "&amp;" happening in ccm.helper.html?
 
             resource.context.appendChild( element );
@@ -205,7 +205,7 @@
             request.open( resource.method, resource.method === 'GET' ? buildURL( resource.url, resource.params ) : resource.url, true );
             request.onreadystatechange = () => {
               if ( request.readyState === 4 && request.status === 200 )
-                successData( self.helper.regex( 'json' ).test( request.responseText ) ? JSON.parse( request.responseText ) : request.responseText );
+                successData( RUNTIME.helper.regex( 'json' ).test( request.responseText ) ? JSON.parse( request.responseText ) : request.responseText );
             };
             request.send( resource.method === 'POST' ? JSON.stringify( resource.params ) : undefined );
           }
@@ -232,7 +232,7 @@
 
           if ( typeof data === 'string' && ( data.charAt( 0 ) === '[' || data.charAt( 0 ) === '{' ) ) data = JSON.parse( data );
 
-          results[ i ] = cache[ resource.url ] = self.helper.protect( data );
+          results[ i ] = cache[ resource.url ] = RUNTIME.helper.protect( data );
 
           success();
 
@@ -244,7 +244,7 @@
 
           if ( waiting_lists[ resource.url ] )
             while ( waiting_lists[ resource.url ].length > 0 )
-              self.helper.action( waiting_lists[ resource.url ].shift() );
+              RUNTIME.helper.action( waiting_lists[ resource.url ].shift() );
 
           check();
 
@@ -281,11 +281,11 @@
 
         else {
 
-          var index = self.helper.getIndex( component );
+          var index = RUNTIME.helper.getIndex( component );
 
           if ( components[ index ] ) return proceed( components[ index ] );
 
-          else self.load( component, proceed );
+          else RUNTIME.load( component, proceed );
 
         }
 
@@ -296,7 +296,7 @@
 
       function proceed( component ) {
 
-        if ( !self.helper.isObject( component ) ) return;
+        if ( !RUNTIME.helper.isObject( component ) ) return;
 
         setNameVersionIndex();
 
@@ -306,7 +306,7 @@
 
         ccm.components[ component.index ] = {};
 
-        if ( !( 'customElements' in window ) ) self.load( {
+        if ( !( 'customElements' in window ) ) RUNTIME.load( {
           url: 'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.0.14/webcomponents-lite.js',
           integrity: 'sha384-TTXH4zkR6Kx22xssZjsMANEJr+byWdSVr/CwNZyegnManSjJsugFZC/SJzGWARHw',
           crossorigin: 'anonymous'
@@ -316,7 +316,7 @@
 
           var version = getFrameworkVersion();
 
-          if ( !ccm[ version ] ) self.load( component.ccm, proceed ); else proceed();
+          if ( !ccm[ version ] ) RUNTIME.load( component.ccm, proceed ); else proceed();
 
           function proceed() {
 
@@ -331,8 +331,8 @@
               component.instances = 0;         // add ccm instance counter
               component.ccm = ccm[ version ];  // add ccm framework reference
 
-              component.instance = function ( config, callback ) { return self.instance( component.index, config, callback ); };
-              component.start    = function ( config, callback ) { return self.start   ( component.index, config, callback ); };
+              component.instance = function ( config, callback ) { return RUNTIME.instance( component.index, config, callback ); };
+              component.start    = function ( config, callback ) { return RUNTIME.start   ( component.index, config, callback ); };
 
               if ( !component.config ) component.config = {};
 
@@ -347,13 +347,13 @@
               window.customElements.define( name, class extends HTMLElement {
                 connectedCallback() {
                   var _this = this;
-                  self.helper.wait( 1, function () {
+                  RUNTIME.helper.wait( 1, function () {
                     if ( !document.body.contains( _this ) ) return;
                     var node = _this;
                     while ( node = node.parentNode )
                       if ( node.tagName && node.tagName.indexOf( 'CCM-' ) === 0 )
                         return;
-                    var config = self.helper.generateConfig( _this );
+                    var config = RUNTIME.helper.generateConfig( _this );
                     config.root = _this;
                     component.start( config );
                   } );
@@ -404,13 +404,13 @@
 
         function finish() {
 
-          component = self.helper.clone( components[ component.index ] );
+          component = RUNTIME.helper.clone( components[ component.index ] );
 
           if ( config ) {
 
-            if ( self.helper.isElementNode( config ) ) config = { root: config };
+            if ( RUNTIME.helper.isElementNode( config ) ) config = { root: config };
 
-            component.config = self.helper.integrate( self.helper.clone( config ), component.config );
+            component.config = RUNTIME.helper.integrate( RUNTIME.helper.clone( config ), component.config );
 
             closure( component );
 
@@ -421,16 +421,16 @@
 
           function closure( component ) {
 
-            component.instance = function ( config, callback ) { return perform( self.instance, config, callback ); };
-            component.start    = function ( config, callback ) { return perform( self.start   , config, callback ); };
+            component.instance = function ( config, callback ) { return perform( RUNTIME.instance, config, callback ); };
+            component.start    = function ( config, callback ) { return perform( RUNTIME.start   , config, callback ); };
 
             function perform( method, config, callback ) {
 
               if ( typeof config === 'function' ) { callback = config; config = undefined; }
 
-              if ( self.helper.isElementNode( config ) ) config = { root: config };
+              if ( RUNTIME.helper.isElementNode( config ) ) config = { root: config };
 
-              config = self.helper.integrate( config, self.helper.clone( component.config ) );
+              config = RUNTIME.helper.integrate( config, RUNTIME.helper.clone( component.config ) );
 
               return method( component.index, config, function ( instance ) {
 
@@ -465,23 +465,23 @@
 
         counter++;
 
-        var dependency = [ 'ccm.instance', arguments[ 0 ], self.helper.clone( cfg ) ];
+        var dependency = [ 'ccm.instance', arguments[ 0 ], RUNTIME.helper.clone( cfg ) ];
 
-        self.component( comp, function ( comp ) { proceed( comp.index ); } );
+        RUNTIME.component( comp, function ( comp ) { proceed( comp.index ); } );
 
         function proceed( index ) {
 
-          if ( self.helper.isDependency( cfg ) ) cfg = { key: cfg };
+          if ( RUNTIME.helper.isDependency( cfg ) ) cfg = { key: cfg };
           if ( cfg && cfg.key ) {
-            if ( self.helper.isObject( cfg.key ) )
-              return integrate( self.helper.clone( cfg.key ) );
-            else if ( self.helper.isDependency( cfg.key ) )
-              return cfg.key[ 0 ] === 'ccm.load' ? self.load( cfg.key[ 1 ], integrate ) : self.get( cfg.key[ 1 ], cfg.key[ 2 ], integrate );
+            if ( RUNTIME.helper.isObject( cfg.key ) )
+              return integrate( RUNTIME.helper.clone( cfg.key ) );
+            else if ( RUNTIME.helper.isDependency( cfg.key ) )
+              return cfg.key[ 0 ] === 'ccm.load' ? RUNTIME.load( cfg.key[ 1 ], integrate ) : RUNTIME.get( cfg.key[ 1 ], cfg.key[ 2 ], integrate );
             else proceed( cfg );
           }
           else return proceed( cfg );
           function integrate( dataset ) {
-            self.helper.integrate( cfg, dataset );
+            RUNTIME.helper.integrate( cfg, dataset );
             delete dataset.key;
             return proceed( dataset );
           }
@@ -490,7 +490,7 @@
 
             if ( components[ index ].instances === undefined ) return ccm.helper.wait( 500, function () { proceed( cfg ); } );
 
-            if ( self.helper.isElementNode( cfg ) ) cfg = { root: cfg };
+            if ( RUNTIME.helper.isElementNode( cfg ) ) cfg = { root: cfg };
 
             var instance = new components[ index ].Instance();
 
@@ -499,10 +499,10 @@
             if ( parent ) instance.parent = parent;             // set parent instance
             if ( !result ) result = instance;                   // set result instance
 
-            self.helper.integrate( self.helper.clone( components[ index ].config ), instance );  // set default ccm instance configuration
+            RUNTIME.helper.integrate( RUNTIME.helper.clone( components[ index ].config ), instance );  // set default ccm instance configuration
             if ( cfg ) {
-              self.helper.privatize( cfg, 'ccm', 'component', 'element', 'id', 'index', 'init', 'key', 'ready', 'start' );
-              self.helper.integrate( cfg, instance );           // integrate ccm instance configuration
+              RUNTIME.helper.privatize( cfg, 'ccm', 'component', 'element', 'id', 'index', 'init', 'key', 'ready', 'start' );
+              RUNTIME.helper.integrate( cfg, instance );           // integrate ccm instance configuration
             }
             instance.id = components[ index ].instances;        // set ccm instance id
             instance.index = index + '-' + instance.id;         // set ccm instance index
@@ -530,10 +530,10 @@
               var shadow = document.createElement( 'div' );
               shadow.id = 'ccm-' + instance.index;
               root = document.createElement( 'div' );
-              self.helper.setContent( root, shadow );
+              RUNTIME.helper.setContent( root, shadow );
               document.head.appendChild( root );
 
-              var element = self.helper.html( { id: 'element' } );
+              var element = RUNTIME.helper.html( { id: 'element' } );
 
               shadow = shadow.attachShadow( { mode: 'open' } );
               shadow.appendChild( element );
@@ -548,11 +548,11 @@
 
                 var value = instance_or_array[ key ];
 
-                if ( self.helper.isDependency( value ) ) solveDependency( instance_or_array, key );
+                if ( RUNTIME.helper.isDependency( value ) ) solveDependency( instance_or_array, key );
 
                 else if ( typeof value === 'object' && value !== null ) {
 
-                  if ( self.helper.isNode( value ) || self.helper.isInstance( value ) || self.helper.isComponent( value ) ) continue;
+                  if ( RUNTIME.helper.isNode( value ) || RUNTIME.helper.isInstance( value ) || RUNTIME.helper.isComponent( value ) ) continue;
 
                   solveDependencies( value );
 
@@ -570,7 +570,7 @@
                     counter++;
                     action.shift();
                     setContext( action );
-                    action.push( setResult ); self.load.apply( null, action );
+                    action.push( setResult ); RUNTIME.load.apply( null, action );
                     break;
 
                   case 'ccm.polymer':
@@ -590,7 +590,7 @@
                             config[ key ] = result[ key ];
                       }
 
-                      const link = self.helper.html( { tag: 'link', rel: 'import', href: url } );
+                      const link = RUNTIME.helper.html( { tag: 'link', rel: 'import', href: url } );
                       const polymer = document.createElement( name );
                       for ( const key in config )
                         polymer.setAttribute( key, config[ key ] );
@@ -609,13 +609,13 @@
 
                   case 'ccm.module':
                     counter++;
-                    const callback = 'callback' + self.helper.generateKey();
+                    const callback = 'callback' + RUNTIME.helper.generateKey();
                     ccm.callbacks[ callback ] = function ( result ) {
                       delete ccm.callbacks[ callback ];
-                      self.helper.removeElement( tag );
+                      RUNTIME.helper.removeElement( tag );
                       setResult( result );
                     };
-                    const tag = self.helper.html( { tag: 'script', type: 'module' } );
+                    const tag = RUNTIME.helper.html( { tag: 'script', type: 'module' } );
                     tag.text = "import * as obj from '"+action[1]+"'; ccm.callbacks['"+callback+"']( obj )";
                     document.head.appendChild( tag );
                     break;
@@ -624,7 +624,7 @@
                     counter++;
                     if ( !action[ 2 ] ) action[ 2 ] = {};
                     action[ 2 ].parent = instance;
-                    self.component( action[ 1 ], action[ 2 ], function ( result ) { setResult( result ); } );
+                    RUNTIME.component( action[ 1 ], action[ 2 ], function ( result ) { setResult( result ); } );
                     break;
 
                   case 'ccm.instance':
@@ -640,29 +640,29 @@
                     counter++;
                     if ( !action[ 1 ] ) action[ 1 ] = {};
                     action[ 1 ].parent = instance;
-                    self.store( action[ 1 ], setResult );
+                    RUNTIME.store( action[ 1 ], setResult );
                     break;
 
                   case 'ccm.get':
                     counter++;
-                    self.get( action[ 1 ], action[ 2 ], setResult );
+                    RUNTIME.get( action[ 1 ], action[ 2 ], setResult );
                     break;
 
                   case 'ccm.set':
                     counter++;
-                    self.set( action[ 1 ], action[ 2 ], setResult );
+                    RUNTIME.set( action[ 1 ], action[ 2 ], setResult );
                     break;
 
                   case 'ccm.del':
                     counter++;
-                    self.del( action[ 1 ], action[ 2 ], setResult );
+                    RUNTIME.del( action[ 1 ], action[ 2 ], setResult );
                     break;
                 }
 
                 function setContext( resources ) {
                   for ( var i = 0; i < resources.length; i++ ) {
                     if ( Array.isArray( resources[ i ] ) ) { setContext( resources[ i ] ); continue; }
-                    if ( !self.helper.isObject( resources[ i ] ) ) resources[ i ] = { url: resources[ i ] };
+                    if ( !RUNTIME.helper.isObject( resources[ i ] ) ) resources[ i ] = { url: resources[ i ] };
                     if ( !resources[ i ].context ) resources[ i ].context = instance.element.parentNode;
                   }
                 }
@@ -677,7 +677,7 @@
 
                 function proxy( component, config, instance_or_array, key, parent ) {
 
-                  self.helper.isDependency( config ) ? self.get( config[ 1 ], config[ 2 ], proceed ) : proceed( config );
+                  RUNTIME.helper.isDependency( config ) ? RUNTIME.get( config[ 1 ], config[ 2 ], proceed ) : proceed( config );
 
                   function proceed( config ) {
 
@@ -688,8 +688,8 @@
                         delete this.component;
                         delete this.start;
                         if ( !config ) config = {};
-                        self.helper.integrate( this, config );
-                        self.start( component, config, function ( instance ) {
+                        RUNTIME.helper.integrate( this, config );
+                        RUNTIME.start( component, config, function ( instance ) {
                           instance_or_array[ key ] = instance;
                           if ( callback ) callback();
                         } );
@@ -710,10 +710,10 @@
 
               if ( counter === 0 ) {
 
-                self.helper.setContent( instance.root, root.firstElementChild );
+                RUNTIME.helper.setContent( instance.root, root.firstElementChild );
                 document.head.removeChild( root );
 
-                if ( waiter.length > 0 ) return self.helper.action( waiter.shift() );  // recursive call
+                if ( waiter.length > 0 ) return RUNTIME.helper.action( waiter.shift() );  // recursive call
 
                 instance.dependency = dependency;
 
@@ -746,11 +746,11 @@
                 for ( var key in obj ) {
                   var value = obj[ key ];
 
-                  if ( self.helper.isInstance( value ) && key !== 'parent' && !self.helper.isProxy( value) ) inner.push( value );
+                  if ( RUNTIME.helper.isInstance( value ) && key !== 'parent' && !RUNTIME.helper.isProxy( value) ) inner.push( value );
 
-                  else if ( Array.isArray( value ) || self.helper.isObject( value ) ) {
+                  else if ( Array.isArray( value ) || RUNTIME.helper.isObject( value ) ) {
 
-                    if ( self.helper.isNode( value ) || self.helper.isComponent( value ) || self.helper.isInstance( value ) ) continue;
+                    if ( RUNTIME.helper.isNode( value ) || RUNTIME.helper.isComponent( value ) || RUNTIME.helper.isInstance( value ) ) continue;
 
                     inner.push( value );
 
@@ -758,7 +758,7 @@
 
                 }
 
-                inner.map( function ( obj ) { if ( self.helper.isInstance( obj ) ) results.push( obj ); } );
+                inner.map( function ( obj ) { if ( RUNTIME.helper.isInstance( obj ) ) results.push( obj ); } );
 
                 inner.map( function ( obj ) { find( obj ); } );
 
@@ -800,7 +800,7 @@
 
       if ( typeof config === 'function' ) { callback = config; config = undefined; }
 
-      self.instance( component, config, function ( instance ) {
+      RUNTIME.instance( component, config, function ( instance ) {
 
         instance.start( function () {
 
@@ -813,48 +813,57 @@
     },
 
     store: ( settings, callback ) => {
+      // IMPROVE:
+      // This line is doing 'empty work', settings is the same as before.
+      // Using let or var would create a copy for the given scope, but then
+      // the tests fail.
+      settings = RUNTIME.helper.clone( settings );
 
-      settings = self.helper.clone( settings );
+      if ( !RUNTIME.helper.isDatastoreSettings( settings ) ) { settings = { local: settings }; }
+      if ( !settings.local ) { settings.local = {}; }
 
-      if ( !self.helper.isDatastoreSettings( settings ) ) settings = { local: settings };
-
-      if ( !settings.local ) settings.local = {};
-
-      if ( typeof settings.local === 'string' || self.helper.isResourceDataObject( settings.local ) )
-        self.load( settings.local, proceed );
-      else
+      if ( typeof settings.local === 'string' || RUNTIME.helper.isResourceDataObject( settings.local ) ) {
+        RUNTIME.load( settings.local, proceed );
+      } else {
         proceed( settings.local );
+      }
 
       function proceed( datasets ) {
-
-        settings.local = self.helper.clone( datasets );
-
         const store = new Datastore();
 
-        self.helper.integrate( settings, store );
+        settings.local = RUNTIME.helper.clone( datasets );
+        RUNTIME.helper.integrate( settings, store );
 
-        store.init( () => callback && callback( store ) );
+        store.init( () => {
+
+          if (callback) { callback( store ) };
+        });
 
       }
-
     },
 
-    get: ( settings, key_or_query, callback ) => self.store( settings, store => {
+    get: ( settings, key_or_query, callback ) => {
 
-      let property;
-      if ( typeof key_or_query === 'string' ) {
-        property = key_or_query.split( '.' );
-        key_or_query = property.shift();
-        property = property.join( '.' );
-      }
+      RUNTIME.store( settings, (store) => {
+        let property;
 
-      store.get( key_or_query, result => callback( property ? self.helper.deepValue( result, property ) : result ) );
+        if ( typeof key_or_query === 'string' ) {
+          property     = key_or_query.split( '.' );
+          key_or_query = property.shift();
+          property     = property.join( '.' );
+        }
 
-    } ),
+        store.get( key_or_query, (result) => {
+          let ret = property ? RUNTIME.helper.deepValue( result, property ) : result;
 
-    set: ( settings, priodata, callback ) => self.store( settings, store => store.set( priodata, callback ) ),
+          callback( ret );
+        });
+      })
+    },
 
-    del: ( settings, key, callback ) => self.store( settings, store => store.del( key, callback ) ),
+    set: ( settings, priodata, callback ) => RUNTIME.store( settings, store => store.set( priodata, callback ) ),
+
+    del: ( settings, key, callback ) => RUNTIME.store( settings, store => store.del( key, callback ) ),
 
 
     context: {
@@ -864,7 +873,7 @@
         const start = instance;
         if ( not_me ) instance = instance.parent;
         do
-          if ( self.helper.isObject( instance ) && instance[ property ] !== undefined && instance[ property ] !== start )
+          if ( RUNTIME.helper.isObject( instance ) && instance[ property ] !== undefined && instance[ property ] !== start )
             return instance[ property ];
         while ( instance = instance.parent );
 
@@ -901,7 +910,7 @@
 
       append: function ( parent, node ) {
 
-        node = self.helper.protect( node );
+        node = RUNTIME.helper.protect( node );
         parent.appendChild( node );
 
       },
@@ -923,8 +932,8 @@
         for ( var key in obj )
           if ( !obj[ key ] )
             delete obj[ key ];
-          else if ( typeof obj[ key ] === 'object' && !self.helper.isNode( obj[ key ] ) && !self.helper.isInstance( obj[ key ] ) )
-            self.helper.cleanObject( obj[ key ] );
+          else if ( typeof obj[ key ] === 'object' && !RUNTIME.helper.isNode( obj[ key ] ) && !RUNTIME.helper.isInstance( obj[ key ] ) )
+            RUNTIME.helper.cleanObject( obj[ key ] );
 
         return obj;
 
@@ -936,9 +945,9 @@
 
         function recursive( value ) {
 
-          if ( self.helper.isNode( value ) || self.helper.isInstance( value ) ) return value;
+          if ( RUNTIME.helper.isNode( value ) || RUNTIME.helper.isInstance( value ) ) return value;
 
-          if ( Array.isArray( value ) || self.helper.isObject( value ) ) {
+          if ( Array.isArray( value ) || RUNTIME.helper.isObject( value ) ) {
             var copy = Array.isArray( value ) ? [] : {};
             for ( var i in value )
               copy[ i ] = recursive( value[ i ] );
@@ -971,7 +980,7 @@
         var keys = Object.keys( obj );
         keys.map( function ( key ) {
           if ( key.indexOf( '.' ) !== -1 ) {
-            self.helper.deepValue( obj, key, obj[ key ] );
+            RUNTIME.helper.deepValue( obj, key, obj[ key ] );
             delete obj[ key ];
           }
         } );
@@ -981,17 +990,17 @@
 
       dataset: ( settings, callback, _ ) => {
 
-        if ( self.helper.isDatastore( settings ) ) settings = { store: settings };
+        if ( RUNTIME.helper.isDatastore( settings ) ) settings = { store: settings };
 
-        settings = self.helper.clone( settings );
+        settings = RUNTIME.helper.clone( settings );
 
-        if ( !settings || !self.helper.isDatastore( settings.store ) ) return callback( settings );
+        if ( !settings || !RUNTIME.helper.isDatastore( settings.store ) ) return callback( settings );
 
-        if ( self.helper.isKey( callback ) ) { settings.key = callback; callback = _; }
+        if ( RUNTIME.helper.isKey( callback ) ) { settings.key = callback; callback = _; }
 
-        if ( !settings.key ) settings.key = self.helper.generateKey();
+        if ( !settings.key ) settings.key = RUNTIME.helper.generateKey();
 
-        const user = self.context.find( settings.store, 'user' );
+        const user = RUNTIME.context.find( settings.store, 'user' );
 
         user && ( settings.login || settings.user ) ? user.login( proceed ) : proceed();
 
@@ -1008,9 +1017,9 @@
       decodeObject: str => {
 
         if ( typeof str === 'string' ) return JSON.parse( str.replace( /'/g, '"' ) );
-        if ( typeof str === 'object' && !self.helper.isNode( str ) && !self.helper.isInstance( str ) )
+        if ( typeof str === 'object' && !RUNTIME.helper.isNode( str ) && !RUNTIME.helper.isInstance( str ) )
           for ( const key in str )
-            str[ key ] = self.helper.decodeObject( str[ key ] );
+            str[ key ] = RUNTIME.helper.decodeObject( str[ key ] );
         return str;
 
       },
@@ -1045,13 +1054,13 @@
 
       encodeDependencies: value => {
 
-        if ( self.helper.isDependency( value ) )
+        if ( RUNTIME.helper.isDependency( value ) )
           return JSON.stringify( value ).replace( /"/g, "'" );
 
-        if ( typeof value !== 'object' || self.helper.isNode( value ) || self.helper.isInstance( value ) ) return value;
+        if ( typeof value !== 'object' || RUNTIME.helper.isNode( value ) || RUNTIME.helper.isInstance( value ) ) return value;
 
         for ( const key in value )
-          value[ key ] = self.helper.encodeDependencies( value[ key ] );
+          value[ key ] = RUNTIME.helper.encodeDependencies( value[ key ] );
 
         return value;
       },
@@ -1077,27 +1086,27 @@
 
       fillForm: ( element, data ) => {
 
-        data = self.helper.clone( self.helper.protect( data ) );
-        const dot = self.helper.toDotNotation( data );
+        data = RUNTIME.helper.clone( RUNTIME.helper.protect( data ) );
+        const dot = RUNTIME.helper.toDotNotation( data );
         for ( const key in dot ) data[ key ] = dot[ key ];
         for ( const key in data ) {
           if ( !data[ key ] ) continue;
-          if ( typeof data[ key ] === 'object' ) data[ key ] = self.helper.encodeObject( data[ key ] );
-          if ( typeof data[ key ] === 'string' ) data[ key ] = self.helper.unescapeHTML( data[ key ] );
+          if ( typeof data[ key ] === 'object' ) data[ key ] = RUNTIME.helper.encodeObject( data[ key ] );
+          if ( typeof data[ key ] === 'string' ) data[ key ] = RUNTIME.helper.unescapeHTML( data[ key ] );
           [ ...element.querySelectorAll( '[name="' + key + '"]' ) ].map( input => {
             if ( input.type === 'checkbox' ) {
               if ( input.value && typeof data[ key ] === 'string' && data[ key ].charAt( 0 ) === '[' )
-                self.helper.decodeObject( data[ key ] ).map( value => { if ( value === input.value ) input.checked = true; } );
+                RUNTIME.helper.decodeObject( data[ key ] ).map( value => { if ( value === input.value ) input.checked = true; } );
               else
                 input.checked = true;
             }
             else if ( input.type === 'radio' && data[ key ] === input.value )
               input.checked = true;
             else if ( input.tagName.toLowerCase() === 'select' ) {
-              if ( input.hasAttribute( 'multiple' ) ) data[ key ] = self.helper.decodeObject( data[ key ] );
+              if ( input.hasAttribute( 'multiple' ) ) data[ key ] = RUNTIME.helper.decodeObject( data[ key ] );
               [ ...input.querySelectorAll( 'option' ) ].map( option => {
                 if ( input.hasAttribute( 'multiple' ) )
-                  data[ key ].map( value => { value = self.helper.encodeObject( value ); if ( value === ( option.value ? option.value : option.innerHTML.trim() ) ) option.selected = true; } );
+                  data[ key ].map( value => { value = RUNTIME.helper.encodeObject( value ); if ( value === ( option.value ? option.value : option.innerHTML.trim() ) ) option.selected = true; } );
                 else if ( data[ key ] === ( option.value ? option.value : option.innerHTML.trim() ) )
                   option.selected = true;
               } );
@@ -1113,7 +1122,7 @@
 
       filterProperties: function ( obj, properties ) {
         var result = {};
-        properties = self.helper.makeIterable( arguments );
+        properties = RUNTIME.helper.makeIterable( arguments );
         properties.shift();
         properties.map( function ( property ) {
           result[ property ] = obj[ property ];
@@ -1210,13 +1219,13 @@
           else
             data[ input.getAttribute( 'name' ) ] = input.innerHTML;
           try {
-            if ( typeof data[ input.name ] === 'string' && self.helper.regex( 'json' ).test( data[ input.name ] ) )
-              data[ input.name ] = self.helper.decodeObject( data[ input.name ] );
+            if ( typeof data[ input.name ] === 'string' && RUNTIME.helper.regex( 'json' ).test( data[ input.name ] ) )
+              data[ input.name ] = RUNTIME.helper.decodeObject( data[ input.name ] );
           } catch ( err ) {}
           if ( typeof data[ input.name ] === 'string' )
-            data[ input.name ] = self.helper.escapeHTML( data[ input.name ] );
+            data[ input.name ] = RUNTIME.helper.escapeHTML( data[ input.name ] );
         } );
-        return self.helper.protect( self.helper.solveDotNotation( data ) );
+        return RUNTIME.helper.protect( RUNTIME.helper.solveDotNotation( data ) );
 
       },
 
@@ -1229,7 +1238,7 @@
 
         function catchAttributes( node, obj ) {
 
-          self.helper.makeIterable( node.attributes ).map( function ( attr ) {
+          RUNTIME.helper.makeIterable( node.attributes ).map( function ( attr ) {
             if ( attr.name !== 'src' ||
               ( node.tagName.indexOf( 'CCM-COMPONENT' ) !== 0
                 && node.tagName.indexOf( 'CCM-INSTANCE'  ) !== 0
@@ -1244,18 +1253,18 @@
         function catchInnerTags( node ) {
 
           config.childNodes = [];
-          self.helper.makeIterable( node.childNodes ).map( function ( child ) {
+          RUNTIME.helper.makeIterable( node.childNodes ).map( function ( child ) {
             if ( child.tagName && child.tagName.indexOf( 'CCM-' ) === 0 ) {
               var split = child.tagName.toLowerCase().split( '-' );
               if ( split.length < 3 ) split[ 2 ] = split[ 1 ];
               switch ( split[ 1 ] ) {
                 case 'load':
-                  self.helper.deepValue( config, split[ 2 ], interpretLoadTag( child, split[ 2 ] ) );
+                  RUNTIME.helper.deepValue( config, split[ 2 ], interpretLoadTag( child, split[ 2 ] ) );
                   break;
                 case 'component':
                 case 'instance':
                 case 'proxy':
-                  self.helper.deepValue( config, split[ 2 ], [ 'ccm.' + split[ 1 ], child.getAttribute( 'src' ) || split[ 2 ], self.helper.generateConfig( child ) ] );
+                  RUNTIME.helper.deepValue( config, split[ 2 ], [ 'ccm.' + split[ 1 ], child.getAttribute( 'src' ) || split[ 2 ], RUNTIME.helper.generateConfig( child ) ] );
                   break;
                 case 'store':
                 case 'get':
@@ -1263,11 +1272,11 @@
                   catchAttributes( child, settings );
                   var key = settings.key;
                   delete settings.key;
-                  self.helper.deepValue( config, split[ 2 ], [ 'ccm.' + split[ 1 ], settings, key ] );
+                  RUNTIME.helper.deepValue( config, split[ 2 ], [ 'ccm.' + split[ 1 ], settings, key ] );
                   break;
                 case 'list':
                   var list = null;
-                  self.helper.makeIterable( child.children ).map( function ( entry ) {
+                  RUNTIME.helper.makeIterable( child.children ).map( function ( entry ) {
                     if ( entry.tagName && entry.tagName.indexOf( 'CCM-ENTRY' ) === 0 ) {
                       var value = prepareValue( entry.getAttribute( 'value' ) );
                       var split = entry.tagName.toLowerCase().split( '-' );
@@ -1276,12 +1285,12 @@
                       if ( split.length < 3 )
                         list.push( value );
                       else
-                        self.helper.deepValue( list, split[ 2 ], value );
+                        RUNTIME.helper.deepValue( list, split[ 2 ], value );
                     }
                   } );
                   if ( !list ) list = {};
                   catchAttributes( child, list );
-                  if ( list ) self.helper.deepValue( config, split[ 2 ], list );
+                  if ( list ) RUNTIME.helper.deepValue( config, split[ 2 ], list );
                   break;
                 default:
                   config.childNodes.push( child );
@@ -1294,7 +1303,7 @@
             }
           } );
           if ( config.inner ) return;
-          config.inner = self.helper.html( {} );
+          config.inner = RUNTIME.helper.html( {} );
           config.childNodes.map( function ( child ) {
             config.inner.appendChild( child );
           } );
@@ -1315,14 +1324,14 @@
                 if ( node.children.length === 0 )
                   return node.getAttribute( 'src' );
                 var data = {};
-                self.helper.makeIterable( node.children ).map( function ( child ) {
+                RUNTIME.helper.makeIterable( node.children ).map( function ( child ) {
                   if ( child.tagName && child.tagName.indexOf( 'CCM-DATA-' ) === 0 )
                     data[ child.tagName.toLowerCase().split( '-' )[ 2 ] ] = child.getAttribute( 'value' );
                 } );
                 return [ node.getAttribute( 'src' ), data ];
               }
               var params = [];
-              self.helper.makeIterable( node.children ).map( function ( child ) {
+              RUNTIME.helper.makeIterable( node.children ).map( function ( child ) {
                 if ( child.tagName === 'CCM-SERIAL' && ( node.tagName === 'CCM-PARALLEL' || node.tagName.indexOf( 'CCM-LOAD' ) === 0 )
                     || child.tagName === 'CCM-PARALLEL' && node.tagName === 'CCM-SERIAL' )
                   params.push( generateParameters( child ) );
@@ -1365,7 +1374,7 @@
 
         var filename = url.split( '/' ).pop();
 
-        if ( !self.helper.regex( 'filename' ).test( filename ) ) return '';
+        if ( !RUNTIME.helper.regex( 'filename' ).test( filename ) ) return '';
 
         var split = filename.split( '.' );
         if ( split[ 0 ] === 'ccm' )
@@ -1378,7 +1387,7 @@
       },
 
       hide: function ( instance ) {
-        instance.element.parentNode.appendChild( self.helper.loading( instance ) );
+        instance.element.parentNode.appendChild( RUNTIME.helper.loading( instance ) );
         instance.element.style.display = 'none';
       },
 
@@ -1393,24 +1402,24 @@
           html = fragment;
         }
 
-        if ( self.helper.isNode( html ) ) return html;
+        if ( RUNTIME.helper.isNode( html ) ) return html;
 
-        html = self.helper.clone( html );
+        html = RUNTIME.helper.clone( html );
 
-        if ( arguments.length > 1 ) html = self.helper.format.apply( this, arguments );
+        if ( arguments.length > 1 ) html = RUNTIME.helper.format.apply( this, arguments );
 
         if ( Array.isArray( html ) ) {
 
           var result = [];
           for ( var i = 0; i < html.length; i++ )
-            result.push( self.helper.html( html[ i ] ) );  // recursive call
+            result.push( RUNTIME.helper.html( html[ i ] ) );  // recursive call
           return result;
 
         }
 
         if ( typeof html !== 'object' ) return html;
 
-        var element = document.createElement( self.helper.htmlEncode( html.tag || 'div' ) );
+        var element = document.createElement( RUNTIME.helper.htmlEncode( html.tag || 'div' ) );
 
         delete html.tag; delete html.key;
 
@@ -1441,7 +1450,7 @@
               if ( !Array.isArray( children ) )
                 children = [ children ];
               for ( var i = 0; i < children.length; i++ )
-                if ( self.helper.isNode( children[ i ] ) )
+                if ( RUNTIME.helper.isNode( children[ i ] ) )
                   element.appendChild( children[ i ] );
                 else
                   element.innerHTML += children[ i ];
@@ -1451,12 +1460,12 @@
               if ( key.indexOf( 'on' ) === 0 && typeof value === 'function' )  // is HTML event
                 element.addEventListener( key.substr( 2 ), value );
               else                                                             // is HTML value attribute
-                element.setAttribute( key, self.helper.htmlEncode( value ) );
+                element.setAttribute( key, RUNTIME.helper.htmlEncode( value ) );
           }
 
         }
 
-        return self.helper.protect( element );
+        return RUNTIME.helper.protect( element );
 
       },
 
@@ -1480,7 +1489,7 @@
 
         for ( var key in priodata ) {
 
-          if ( !as_defaults || self.helper.deepValue( dataset, key ) === undefined ) self.helper.deepValue( dataset, key, priodata[ key ] );
+          if ( !as_defaults || RUNTIME.helper.deepValue( dataset, key ) === undefined ) RUNTIME.helper.deepValue( dataset, key, priodata[ key ] );
 
         }
 
@@ -1490,13 +1499,13 @@
 
       isComponent: function ( value ) {
 
-        return self.helper.isObject( value ) && value.Instance && true;
+        return RUNTIME.helper.isObject( value ) && value.Instance && true;
 
       },
 
-      isDataset: value => self.helper.isObject( value ) && self.helper.isKey( value.key ),
+      isDataset: value => RUNTIME.helper.isObject( value ) && RUNTIME.helper.isKey( value.key ),
 
-      isDatastore: value => self.helper.isObject( value ) && value.get && value.set && value.del && true,
+      isDatastore: value => RUNTIME.helper.isObject( value ) && value.get && value.set && value.del && true,
 
       isDatastoreSettings: value => !!( value.local || value.store ),
 
@@ -1543,17 +1552,17 @@
 
       isInstance: function ( value ) {
 
-        return self.helper.isObject( value ) && value.component && true;
+        return RUNTIME.helper.isObject( value ) && value.component && true;
 
       },
 
       isKey: value => {
 
-        if ( typeof value === 'string' ) return self.helper.regex( 'key' ).test( value );
+        if ( typeof value === 'string' ) return RUNTIME.helper.regex( 'key' ).test( value );
 
         if ( Array.isArray( value ) ) {
           for ( let i = 0; i < value.length; i++ )
-            if ( !self.helper.regex( 'key' ).test( value[ i ] ) )
+            if ( !RUNTIME.helper.regex( 'key' ).test( value[ i ] ) )
               return false;
           return true;
         }
@@ -1576,11 +1585,11 @@
 
       isProxy: function ( value ) {
 
-        return self.helper.isInstance( value ) && typeof value.component === 'string';
+        return RUNTIME.helper.isInstance( value ) && typeof value.component === 'string';
 
       },
 
-      isResourceDataObject: value => self.helper.isObject( value ) && value.url && ( value.context || value.method || value.params || value.attr || value.ignore_cache || value.type ) && true,
+      isResourceDataObject: value => RUNTIME.helper.isObject( value ) && value.url && ( value.context || value.method || value.params || value.attr || value.ignore_cache || value.type ) && true,
 
       isSafari: function () {
 
@@ -1610,7 +1619,7 @@
           instance.element.parentNode.appendChild( style );
         }
 
-        return self.helper.html( { class: 'ccm_loading', inner: { style: 'display: inline-block; width: 0.5em; height: 0.5em; border: 0.15em solid #009ee0; border-right-color: transparent; border-radius: 50%; animation: ccm_loading 1s linear infinite;' } } );
+        return RUNTIME.helper.html( { class: 'ccm_loading', inner: { style: 'display: inline-block; width: 0.5em; height: 0.5em; border: 0.15em solid #009ee0; border-right-color: transparent; border-radius: 50%; animation: ccm_loading 1s linear infinite;' } } );
       },
 
       log: message => console.log( '[ccm]', message ),
@@ -1633,7 +1642,7 @@
 
         if ( settings.confirm && confirm( !settings.confirm ) ) return;
 
-        const user = self.context.find( instance, 'user' );
+        const user = RUNTIME.context.find( instance, 'user' );
 
         if ( settings.login && user ) user.login( proceed ); else proceed();
 
@@ -1643,18 +1652,18 @@
 
           if ( settings.clear ) instance.element.innerHTML = '';
 
-          if ( self.helper.isObject( settings.store ) && settings.store.settings && self.helper.isObject( results ) ) {
+          if ( RUNTIME.helper.isObject( settings.store ) && settings.store.settings && RUNTIME.helper.isObject( results ) ) {
 
-            const dataset = self.helper.clone( results );
+            const dataset = RUNTIME.helper.clone( results );
 
             if ( settings.store.key && !dataset.key ) dataset.key = settings.store.key;
-            if ( settings.store.user && user && user.isLoggedIn() ) dataset.key = [ user.data().user, dataset.key || self.helper.generateKey() ];
+            if ( settings.store.user && user && user.isLoggedIn() ) dataset.key = [ user.data().user, dataset.key || RUNTIME.helper.generateKey() ];
 
             if ( settings.store.permissions ) dataset._ = settings.store.permissions;
 
             if ( user ) settings.store.settings.user = user;
 
-            self.set( settings.store.settings, dataset, proceed );
+            RUNTIME.set( settings.store.settings, dataset, proceed );
 
           }
           else proceed();
@@ -1666,16 +1675,16 @@
             function proceed() {
 
               if ( settings.render )
-                if ( self.helper.isObject( settings.render ) && settings.render.component ) {
+                if ( RUNTIME.helper.isObject( settings.render ) && settings.render.component ) {
                   let config = settings.render.config;
                   if ( !config ) config = {};
-                  self.start( settings.render.component, config, result => {
-                    self.helper.replace( result.root, instance.root );
+                  RUNTIME.start( settings.render.component, config, result => {
+                    RUNTIME.helper.replace( result.root, instance.root );
                     proceed();
                   } );
                   return;
                 }
-                else self.helper.replace( self.helper.html( settings.render ), instance.root );
+                else RUNTIME.helper.replace( RUNTIME.helper.html( settings.render ), instance.root );
               proceed();
 
               function proceed() {
@@ -1696,7 +1705,7 @@
 
       prepend: function ( parent, node ) {
 
-        node = self.helper.protect( node );
+        node = RUNTIME.helper.protect( node );
         if ( parent.hasChildNodes() )
           parent.insertBefore( node, parent.firstChild );
         else
@@ -1728,7 +1737,7 @@
             case 'root':
               break;
             default:
-              if ( self.helper.isInstance( instance[ key ] ) && instance[ key ].parent && instance[ key ].parent.index === instance.index ) return;
+              if ( RUNTIME.helper.isInstance( instance[ key ] ) && instance[ key ].parent && instance[ key ].parent.index === instance.index ) return;
               if ( typeof instance[ key ] === 'function' ) return;
               if ( instance[ key ] !== undefined ) obj[ key ] = instance[ key ];
               delete instance[ key ];
@@ -1742,20 +1751,20 @@
         if ( typeof value === 'string' ) {
           var tag = document.createElement( 'div' );
           tag.innerHTML = value;
-          self.helper.makeIterable( tag.getElementsByTagName( 'script' ) ).map( function ( script ) {
+          RUNTIME.helper.makeIterable( tag.getElementsByTagName( 'script' ) ).map( function ( script ) {
             script.parentNode.removeChild( script );
           } );
           return tag.innerHTML;
         }
 
-        if ( self.helper.isElementNode( value ) )
-          self.helper.makeIterable( value.getElementsByTagName( 'script' ) ).map( function ( script ) {
+        if ( RUNTIME.helper.isElementNode( value ) )
+          RUNTIME.helper.makeIterable( value.getElementsByTagName( 'script' ) ).map( function ( script ) {
             script.parentNode.removeChild( script );
           } );
 
-        else if ( typeof value === 'object' && !self.helper.isNode( value ) )
+        else if ( typeof value === 'object' && !RUNTIME.helper.isNode( value ) )
           for ( var key in value )
-            value[ key ] = self.helper.protect( value[ key ] );
+            value[ key ] = RUNTIME.helper.protect( value[ key ] );
 
         return value;
 
@@ -1783,13 +1792,13 @@
 
       replace: ( newnode, oldnode ) => {
 
-        oldnode.parentNode && oldnode.parentNode.replaceChild( self.helper.protect( newnode ), oldnode );
+        oldnode.parentNode && oldnode.parentNode.replaceChild( RUNTIME.helper.protect( newnode ), oldnode );
 
       },
 
       setContent: function ( element, content ) {
 
-        content = self.helper.protect( content );
+        content = RUNTIME.helper.protect( content );
         if ( typeof content === 'object' ) {
           element.innerHTML = '';
           if ( Array.isArray( content ) )
@@ -1820,18 +1829,18 @@
 
         if ( typeof key === 'function' ) { callback = key; key = undefined; }
 
-        var action = self.helper.clone( key === undefined ? obj : obj[ key ] );
+        var action = RUNTIME.helper.clone( key === undefined ? obj : obj[ key ] );
 
-        if ( !self.helper.isDependency( action ) ) { if ( callback ) callback(); return; }
+        if ( !RUNTIME.helper.isDependency( action ) ) { if ( callback ) callback(); return; }
 
-        action[ 0 ] = self[ action[ 0 ].split( '.' ).pop() ];
+        action[ 0 ] = RUNTIME[ action[ 0 ].split( '.' ).pop() ];
 
         action.push( function ( result ) {
           if ( key !== undefined ) obj[ key ] = result;      // replace ccm dependency with the result of the solved dependency
           if ( callback ) callback( result );
         } );
 
-        return self.helper.action( action );
+        return RUNTIME.helper.action( action );
 
       },
 
@@ -1839,7 +1848,7 @@
 
         for ( const key in obj )
           if ( key.indexOf( '.' ) !== -1 ) {
-            self.helper.deepValue( obj, key, obj[ key ] );
+            RUNTIME.helper.deepValue( obj, key, obj[ key ] );
             delete obj[ key ];
           }
         return obj;
@@ -1904,7 +1913,7 @@
 
     this.init = callback => {
 
-      my = self.helper.privatize( that, 'local', 'store', 'url', 'db', 'method', 'datasets' );
+      my = RUNTIME.helper.privatize( that, 'local', 'store', 'url', 'db', 'method', 'datasets' );
 
       my.store && !my.url ? prepareDB( proceed ) : proceed();
 
@@ -1991,28 +2000,28 @@
 
     };
 
-    this.source = () => self.helper.filterProperties( my, 'url', 'db', 'store' );
+    this.source = () => RUNTIME.helper.filterProperties( my, 'url', 'db', 'store' );
     this.clear  = () => my.local = {};
 
     this.get = ( key_or_query={}, callback ) => {
 
       if ( typeof key_or_query === 'function' ) { callback = key_or_query; key_or_query = {}; }
 
-      if ( self.helper.isObject( key_or_query ) ) key_or_query = self.helper.clone( key_or_query );
+      if ( RUNTIME.helper.isObject( key_or_query ) ) key_or_query = RUNTIME.helper.clone( key_or_query );
 
-      else if ( !self.helper.isKey( key_or_query ) && !( my.url && key_or_query === '{}' ) ) { self.helper.log( 'This value is not a valid dataset key:', key_or_query ); return null; }
+      else if ( !RUNTIME.helper.isKey( key_or_query ) && !( my.url && key_or_query === '{}' ) ) { RUNTIME.helper.log( 'This value is not a valid dataset key:', key_or_query ); return null; }
 
       my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
 
       function localCache() {
 
-        solveDependencies( self.helper.isObject( key_or_query ) ? runQuery( key_or_query ) : self.helper.clone( my.local[ key_or_query ] ), callback );
+        solveDependencies( RUNTIME.helper.isObject( key_or_query ) ? runQuery( key_or_query ) : RUNTIME.helper.clone( my.local[ key_or_query ] ), callback );
 
         function runQuery( query ) {
 
           const results = [];
 
-          for ( const key in my.local ) self.helper.isSubset( query, my.local[ key ] ) && results.push( self.helper.clone( my.local[ key ] ) );
+          for ( const key in my.local ) RUNTIME.helper.isSubset( query, my.local[ key ] ) && results.push( RUNTIME.helper.clone( my.local[ key ] ) );
 
           return results;
         }
@@ -2033,7 +2042,7 @@
 
       function solveDependencies( value, callback ) {
 
-        if ( !Array.isArray() && !self.helper.isObject() ) return callback( value );
+        if ( !Array.isArray() && !RUNTIME.helper.isObject() ) return callback( value );
 
         let counter = 1;
 
@@ -2046,7 +2055,7 @@
 
             if ( Array.isArray( value && value.length > 0 && value[ 0 ] === 'ccm.get' ) ) solveDependency( value, arr_or_obj, i );
 
-            else if ( Array.isArray( value ) || ( self.helper.isObject( value ) && !self.helper.isNode( value ) && !self.helper.isInstance( value ) ) ) recursive( value );
+            else if ( Array.isArray( value ) || ( RUNTIME.helper.isObject( value ) && !RUNTIME.helper.isNode( value ) && !RUNTIME.helper.isInstance( value ) ) ) recursive( value );
 
           }
 
@@ -2058,7 +2067,7 @@
 
           counter++;
 
-          self.get( dependency[ 1 ], dependency[ 2 ], result => { arr_or_obj[ i ] = result; recursive( result ); check(); } );
+          RUNTIME.get( dependency[ 1 ], dependency[ 2 ], result => { arr_or_obj[ i ] = result; recursive( result ); check(); } );
 
         }
 
@@ -2074,17 +2083,17 @@
 
     this.set = ( priodata, callback ) => {
 
-      priodata = self.helper.clone( priodata );
+      priodata = RUNTIME.helper.clone( priodata );
 
-      if ( !priodata.key ) priodata.key = self.helper.generateKey();
+      if ( !priodata.key ) priodata.key = RUNTIME.helper.generateKey();
 
-      if ( !self.helper.isKey( priodata.key ) ) return self.helper.log( 'This value is not a valid dataset key:', priodata.key );
+      if ( !RUNTIME.helper.isKey( priodata.key ) ) return RUNTIME.helper.log( 'This value is not a valid dataset key:', priodata.key );
 
       my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
 
       function localCache() {
 
-        if ( my.local[ priodata.key ] ) self.helper.integrate( priodata, my.local[ priodata.key ] );
+        if ( my.local[ priodata.key ] ) RUNTIME.helper.integrate( priodata, my.local[ priodata.key ] );
 
         else my.local[ priodata.key ] = priodata;
 
@@ -2100,7 +2109,7 @@
 
       function serverDB() {
 
-        ( my.socket ? useWebsocket : useHttp )( prepareParams( { set: priodata } ), response => self.helper.isKey( response ) && callback && callback( response ) );
+        ( my.socket ? useWebsocket : useHttp )( prepareParams( { set: priodata } ), response => RUNTIME.helper.isKey( response ) && callback && callback( response ) );
 
       }
 
@@ -2108,7 +2117,7 @@
 
     this.del = ( key, callback ) => {
 
-      if ( !self.helper.isKey( key ) ) return self.helper.log( 'This value is not a valid dataset key:', key );
+      if ( !RUNTIME.helper.isKey( key ) ) return RUNTIME.helper.log( 'This value is not a valid dataset key:', key );
 
       my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
 
@@ -2142,7 +2151,7 @@
 
       if ( my.db ) params.db = my.db;
       params.store = my.store;
-      const user = self.context.find( that, 'user' );
+      const user = RUNTIME.context.find( that, 'user' );
       if ( user && user.isLoggedIn() ) {
         params.realm = user.getRealm();
         params.token = user.data().token;
@@ -2161,14 +2170,14 @@
 
     function useHttp( params, callback ) {
 
-      self.load( { url: my.url, params: params, method: my.method }, callback );
+      RUNTIME.load( { url: my.url, params: params, method: my.method }, callback );
 
     }
 
   };
 
-  if ( self.version && !ccm[ self.version() ] ) ccm[ self.version() ] = self;
+  if ( RUNTIME.version && !ccm[ RUNTIME.version() ] ) ccm[ RUNTIME.version() ] = RUNTIME;
 
-  if ( !ccm.version || self.helper.compareVersions( self.version(), ccm.version() ) > 0 ) { ccm.latest = self; self.helper.integrate( self, ccm ); }
+  if ( !ccm.version || RUNTIME.helper.compareVersions( RUNTIME.version(), ccm.version() ) > 0 ) { ccm.latest = RUNTIME; RUNTIME.helper.integrate( RUNTIME, ccm ); }
 
 } )();
