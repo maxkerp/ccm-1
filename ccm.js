@@ -1,303 +1,22 @@
 ( function () {
+  if ( !window.ccm ) {
+    window.ccm = {
+      components: {},
+      callbacks:  {},
+      files:      {}
+    };
+  }
 
   let cache = {};
-
-  const components = {};
-
-  const Datastore = function () {
-
-    const callbacks = [];
-
-    const that = this;
-
-    let my;
-
-    this.init = callback => {
-
-      my = self.helper.privatize( that, 'local', 'store', 'url', 'db', 'method', 'datasets' );
-
-      my.store && !my.url ? prepareDB( proceed ) : proceed();
-
-      function prepareDB( callback ) {
-
-        !db ? openDB( proceed ) : proceed();
-
-        function openDB( callback ) {
-
-          const request = indexedDB.open( 'ccm' );
-
-          request.onsuccess = function () {
-
-            db = this.result;
-
-            callback();
-
-          };
-
-        }
-
-        function proceed() {
-
-          !db.objectStoreNames.contains( my.store ) ? updateDB( callback ) : callback();
-
-          function updateDB( callback ) {
-
-            let version = parseInt( localStorage.getItem( 'ccm' ) );
-
-            if ( !version ) version = 1;
-
-            db.close();
-
-            const request = indexedDB.open( 'ccm', version + 1 );
-
-            request.onupgradeneeded = () => {
-
-              db = this.result;
-
-              localStorage.setItem( 'ccm', db.version );
-
-              db.createObjectStore( my.store, { keyPath: 'key' } );
-
-            };
-
-            request.onsuccess = callback;
-
-          }
-
-        }
-
-      }
-
-      function proceed() {
-
-        my.url && my.url.indexOf( 'ws' ) === 0 ? prepareRealtime( callback ) : callback();
-
-        function prepareRealtime( callback ) {
-
-          let message = [ my.db, my.store ];
-          if ( my.datasets )
-            message = message.concat( my.datasets );
-
-          my.socket = new WebSocket( my.url, 'ccm-cloud' );
-
-          my.socket.onmessage = message => {
-
-            message = JSON.parse( message.data );
-
-            if ( message.callback ) callbacks[ message.callback - 1 ]( message.data );
-
-            else {
-
-              that.onchange && that.onchange( message.data );
-
-            }
-
-          };
-
-          my.socket.onopen = function () { this.send( message ); callback(); };
-
-        }
-      }
-
-    };
-
-    this.source = () => self.helper.filterProperties( my, 'url', 'db', 'store' );
-
-    this.clear = () => my.local = {};
-
-    this.get = ( key_or_query={}, callback ) => {
-
-      if ( typeof key_or_query === 'function' ) { callback = key_or_query; key_or_query = {}; }
-
-      if ( self.helper.isObject( key_or_query ) ) key_or_query = self.helper.clone( key_or_query );
-
-      else if ( !self.helper.isKey( key_or_query ) && !( my.url && key_or_query === '{}' ) ) { self.helper.log( 'This value is not a valid dataset key:', key_or_query ); return null; }
-
-      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
-
-      function localCache() {
-
-        solveDependencies( self.helper.isObject( key_or_query ) ? runQuery( key_or_query ) : self.helper.clone( my.local[ key_or_query ] ), callback );
-
-        function runQuery( query ) {
-
-          const results = [];
-
-          for ( const key in my.local ) self.helper.isSubset( query, my.local[ key ] ) && results.push( self.helper.clone( my.local[ key ] ) );
-
-          return results;
-        }
-
-      }
-
-      function clientDB() {
-
-        getStore().get( key_or_query ).onsuccess = event => solveDependencies( event.target.result, callback );
-
-      }
-
-      function serverDB() {
-
-        ( my.socket ? useWebsocket : useHttp )( prepareParams( { get: key_or_query } ), response => solveDependencies( response, callback ) );
-
-      }
-
-      function solveDependencies( value, callback ) {
-
-        if ( !Array.isArray() && !self.helper.isObject() ) return callback( value );
-
-        let counter = 1;
-
-        recursive( value );
-
-        function recursive( arr_or_obj ) {
-
-          for ( const i in arr_or_obj ) {
-            const value = arr_or_obj[ i ];
-
-            if ( Array.isArray( value && value.length > 0 && value[ 0 ] === 'ccm.get' ) ) solveDependency( value, arr_or_obj, i );
-
-            else if ( Array.isArray( value ) || ( self.helper.isObject( value ) && !self.helper.isNode( value ) && !self.helper.isInstance( value ) ) ) recursive( value );
-
-          }
-
-          check();
-
-        }
-
-        function solveDependency( dependency, arr_or_obj, i ) {
-
-          counter++;
-
-          self.get( dependency[ 1 ], dependency[ 2 ], result => { arr_or_obj[ i ] = result; recursive( result ); check(); } );
-
-        }
-
-        function check() {
-
-          !--counter && callback && callback( value );
-
-        }
-
-      }
-
-    };
-
-    this.set = ( priodata, callback ) => {
-
-      priodata = self.helper.clone( priodata );
-
-      if ( !priodata.key ) priodata.key = self.helper.generateKey();
-
-      if ( !self.helper.isKey( priodata.key ) ) return self.helper.log( 'This value is not a valid dataset key:', priodata.key );
-
-      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
-
-      function localCache() {
-
-        if ( my.local[ priodata.key ] ) self.helper.integrate( priodata, my.local[ priodata.key ] );
-
-        else my.local[ priodata.key ] = priodata;
-
-        callback && callback();
-
-      }
-
-      function clientDB() {
-
-        getStore().put( priodata ).onsuccess = event => callback && callback( !!event.target.result );
-
-      }
-
-      function serverDB() {
-
-        ( my.socket ? useWebsocket : useHttp )( prepareParams( { set: priodata } ), response => self.helper.isKey( response ) && callback && callback( response ) );
-
-      }
-
-    };
-
-    this.del = ( key, callback ) => {
-
-      if ( !self.helper.isKey( key ) ) return self.helper.log( 'This value is not a valid dataset key:', key );
-
-      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
-
-      function localCache() {
-
-        delete my.local[ key ]; callback && callback( true );
-
-      }
-
-      function clientDB() {
-
-        getStore().delete( key ).onsuccess = event => callback && callback( !!event.target.result );
-
-      }
-
-      function serverDB() {
-
-        ( my.socket ? useWebsocket : useHttp )( prepareParams( { del: key } ), response => response === true && callback && callback( response ) );
-
-      }
-
-    };
-
-    function getStore() {
-
-      return db.transaction( [ my.store ], 'readwrite' ).objectStore( my.store );
-
-    }
-
-    function prepareParams( params={} ) {
-
-      if ( my.db ) params.db = my.db;
-      params.store = my.store;
-      const user = self.context.find( that, 'user' );
-      if ( user && user.isLoggedIn() ) {
-        params.realm = user.getRealm();
-        params.token = user.data().token;
-      }
-      return params;
-
-    }
-
-    function useWebsocket( params, callback ) {
-
-      callbacks.push( callback );
-      params.callback = callbacks.length;
-      my.socket.send( JSON.stringify( params ) );
-
-    }
-
-    function useHttp( params, callback ) {
-
-      self.load( { url: my.url, params: params, method: my.method }, callback );
-
-    }
-
-  };
-
   let db;
 
+  const components = {};
   const waiting_lists = {};
-
-
-  if ( !window.ccm ) ccm = {
-
-    components: {},
-
-    callbacks: {},
-
-    files: {}
-
-  };
 
   const self = {
 
-    version: () => '16.3.1',
-
-    clear: () => { cache = {}; },
+    version : () => '16.3.1',
+    clear   : () => { cache = {}; },
 
     load: function () {
 
@@ -2176,33 +1895,280 @@
 
   };
 
+  const Datastore = function () {
+
+    const callbacks = [];
+    const that = this;
+
+    let my;
+
+    this.init = callback => {
+
+      my = self.helper.privatize( that, 'local', 'store', 'url', 'db', 'method', 'datasets' );
+
+      my.store && !my.url ? prepareDB( proceed ) : proceed();
+
+      function prepareDB( callback ) {
+
+        !db ? openDB( proceed ) : proceed();
+
+        function openDB( callback ) {
+
+          const request = indexedDB.open( 'ccm' );
+
+          request.onsuccess = function () {
+
+            db = this.result;
+
+            callback();
+
+          };
+
+        }
+
+        function proceed() {
+
+          !db.objectStoreNames.contains( my.store ) ? updateDB( callback ) : callback();
+
+          function updateDB( callback ) {
+
+            let version = parseInt( localStorage.getItem( 'ccm' ) );
+
+            if ( !version ) version = 1;
+
+            db.close();
+
+            const request = indexedDB.open( 'ccm', version + 1 );
+
+            request.onupgradeneeded = () => {
+
+              db = this.result;
+
+              localStorage.setItem( 'ccm', db.version );
+
+              db.createObjectStore( my.store, { keyPath: 'key' } );
+
+            };
+
+            request.onsuccess = callback;
+
+          }
+
+        }
+
+      }
+
+      function proceed() {
+
+        my.url && my.url.indexOf( 'ws' ) === 0 ? prepareRealtime( callback ) : callback();
+
+        function prepareRealtime( callback ) {
+
+          let message = [ my.db, my.store ];
+          if ( my.datasets )
+            message = message.concat( my.datasets );
+
+          my.socket = new WebSocket( my.url, 'ccm-cloud' );
+
+          my.socket.onmessage = message => {
+
+            message = JSON.parse( message.data );
+
+            if ( message.callback ) callbacks[ message.callback - 1 ]( message.data );
+
+            else {
+
+              that.onchange && that.onchange( message.data );
+
+            }
+
+          };
+
+          my.socket.onopen = function () { this.send( message ); callback(); };
+
+        }
+      }
+
+    };
+
+    this.source = () => self.helper.filterProperties( my, 'url', 'db', 'store' );
+    this.clear  = () => my.local = {};
+
+    this.get = ( key_or_query={}, callback ) => {
+
+      if ( typeof key_or_query === 'function' ) { callback = key_or_query; key_or_query = {}; }
+
+      if ( self.helper.isObject( key_or_query ) ) key_or_query = self.helper.clone( key_or_query );
+
+      else if ( !self.helper.isKey( key_or_query ) && !( my.url && key_or_query === '{}' ) ) { self.helper.log( 'This value is not a valid dataset key:', key_or_query ); return null; }
+
+      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
+
+      function localCache() {
+
+        solveDependencies( self.helper.isObject( key_or_query ) ? runQuery( key_or_query ) : self.helper.clone( my.local[ key_or_query ] ), callback );
+
+        function runQuery( query ) {
+
+          const results = [];
+
+          for ( const key in my.local ) self.helper.isSubset( query, my.local[ key ] ) && results.push( self.helper.clone( my.local[ key ] ) );
+
+          return results;
+        }
+
+      }
+
+      function clientDB() {
+
+        getStore().get( key_or_query ).onsuccess = event => solveDependencies( event.target.result, callback );
+
+      }
+
+      function serverDB() {
+
+        ( my.socket ? useWebsocket : useHttp )( prepareParams( { get: key_or_query } ), response => solveDependencies( response, callback ) );
+
+      }
+
+      function solveDependencies( value, callback ) {
+
+        if ( !Array.isArray() && !self.helper.isObject() ) return callback( value );
+
+        let counter = 1;
+
+        recursive( value );
+
+        function recursive( arr_or_obj ) {
+
+          for ( const i in arr_or_obj ) {
+            const value = arr_or_obj[ i ];
+
+            if ( Array.isArray( value && value.length > 0 && value[ 0 ] === 'ccm.get' ) ) solveDependency( value, arr_or_obj, i );
+
+            else if ( Array.isArray( value ) || ( self.helper.isObject( value ) && !self.helper.isNode( value ) && !self.helper.isInstance( value ) ) ) recursive( value );
+
+          }
+
+          check();
+
+        }
+
+        function solveDependency( dependency, arr_or_obj, i ) {
+
+          counter++;
+
+          self.get( dependency[ 1 ], dependency[ 2 ], result => { arr_or_obj[ i ] = result; recursive( result ); check(); } );
+
+        }
+
+        function check() {
+
+          !--counter && callback && callback( value );
+
+        }
+
+      }
+
+    };
+
+    this.set = ( priodata, callback ) => {
+
+      priodata = self.helper.clone( priodata );
+
+      if ( !priodata.key ) priodata.key = self.helper.generateKey();
+
+      if ( !self.helper.isKey( priodata.key ) ) return self.helper.log( 'This value is not a valid dataset key:', priodata.key );
+
+      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
+
+      function localCache() {
+
+        if ( my.local[ priodata.key ] ) self.helper.integrate( priodata, my.local[ priodata.key ] );
+
+        else my.local[ priodata.key ] = priodata;
+
+        callback && callback();
+
+      }
+
+      function clientDB() {
+
+        getStore().put( priodata ).onsuccess = event => callback && callback( !!event.target.result );
+
+      }
+
+      function serverDB() {
+
+        ( my.socket ? useWebsocket : useHttp )( prepareParams( { set: priodata } ), response => self.helper.isKey( response ) && callback && callback( response ) );
+
+      }
+
+    };
+
+    this.del = ( key, callback ) => {
+
+      if ( !self.helper.isKey( key ) ) return self.helper.log( 'This value is not a valid dataset key:', key );
+
+      my.url ? serverDB() : ( my.store ? clientDB() : localCache() );
+
+      function localCache() {
+
+        delete my.local[ key ]; callback && callback( true );
+
+      }
+
+      function clientDB() {
+
+        getStore().delete( key ).onsuccess = event => callback && callback( !!event.target.result );
+
+      }
+
+      function serverDB() {
+
+        ( my.socket ? useWebsocket : useHttp )( prepareParams( { del: key } ), response => response === true && callback && callback( response ) );
+
+      }
+
+    };
+
+    function getStore() {
+
+      return db.transaction( [ my.store ], 'readwrite' ).objectStore( my.store );
+
+    }
+
+    function prepareParams( params={} ) {
+
+      if ( my.db ) params.db = my.db;
+      params.store = my.store;
+      const user = self.context.find( that, 'user' );
+      if ( user && user.isLoggedIn() ) {
+        params.realm = user.getRealm();
+        params.token = user.data().token;
+      }
+      return params;
+
+    }
+
+    function useWebsocket( params, callback ) {
+
+      callbacks.push( callback );
+      params.callback = callbacks.length;
+      my.socket.send( JSON.stringify( params ) );
+
+    }
+
+    function useHttp( params, callback ) {
+
+      self.load( { url: my.url, params: params, method: my.method }, callback );
+
+    }
+
+  };
+
   if ( self.version && !ccm[ self.version() ] ) ccm[ self.version() ] = self;
 
   if ( !ccm.version || self.helper.compareVersions( self.version(), ccm.version() ) > 0 ) { ccm.latest = self; self.helper.integrate( self, ccm ); }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 } )();
