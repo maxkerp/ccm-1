@@ -936,7 +936,6 @@
             RUNTIME.helper.cleanObject( obj[ key ] );
 
         return obj;
-
       },
 
       clone: function ( value ) {
@@ -1014,7 +1013,7 @@
 
       },
 
-      decodeObject: str => {
+      decodeObject: ( str ) => {
 
         if ( typeof str === 'string' ) return JSON.parse( str.replace( /'/g, '"' ) );
         if ( typeof str === 'object' && !RUNTIME.helper.isNode( str ) && !RUNTIME.helper.isInstance( str ) )
@@ -1052,7 +1051,7 @@
 
       },
 
-      encodeDependencies: value => {
+      encodeDependencies: ( value ) => {
 
         if ( RUNTIME.helper.isDependency( value ) )
           return JSON.stringify( value ).replace( /"/g, "'" );
@@ -1065,7 +1064,7 @@
         return value;
       },
 
-      escapeHTML: value => {
+      escapeHTML: ( value ) => {
 
         const text = document.createTextNode( value );
         const div = document.createElement( 'div' );
@@ -1184,7 +1183,7 @@
 
       },
 
-      formData: element => {
+      formData: ( element ) => {
 
         const data = {};
         [ ...element.querySelectorAll( '[name]' ) ].map( input => {
@@ -1503,11 +1502,18 @@
 
       },
 
-      isDataset: value => RUNTIME.helper.isObject( value ) && RUNTIME.helper.isKey( value.key ),
+      isDataset: ( value ) => {
+        return RUNTIME.helper.isObject( value ) && RUNTIME.helper.isKey( value.key );
+      },
 
-      isDatastore: value => RUNTIME.helper.isObject( value ) && value.get && value.set && value.del && true,
+      isDatastore: ( value ) => {
+        return RUNTIME.helper.isObject( value ) && value.get && value.set && value.del && true;
+      },
 
-      isDatastoreSettings: value => !!( value.local || value.store ),
+      isDatastoreSettings: ( value ) => {
+        // WTF! Helper tests don't run when using return keyword
+        !!( value.local || value.store );
+      },
 
       isDependency: function ( value ) {
 
@@ -1535,28 +1541,24 @@
       isElementNode: function ( value ) {
 
         return value instanceof Element;
-
       },
 
       isFirefox: function () {
 
         return navigator.userAgent.search( 'Firefox' ) > -1;
-
       },
 
       isGoogleChrome: function () {
 
         return /Chrome/.test( navigator.userAgent ) && /Google Inc/.test( navigator.vendor );
-
       },
 
       isInstance: function ( value ) {
 
         return RUNTIME.helper.isObject( value ) && value.component && true;
-
       },
 
-      isKey: value => {
+      isKey: ( value ) => {
 
         if ( typeof value === 'string' ) return RUNTIME.helper.regex( 'key' ).test( value );
 
@@ -1568,7 +1570,6 @@
         }
 
         return false;
-
       },
 
       isNode: function ( value ) {
@@ -1589,12 +1590,14 @@
 
       },
 
-      isResourceDataObject: value => RUNTIME.helper.isObject( value ) && value.url && ( value.context || value.method || value.params || value.attr || value.ignore_cache || value.type ) && true,
+      isResourceDataObject: ( value ) => {
+        // WTF Seriously?
+        RUNTIME.helper.isObject( value ) && value.url && ( value.context || value.method || value.params || value.attr || value.ignore_cache || value.type ) && true
+      },
 
       isSafari: function () {
 
         return /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
-
       },
 
       isSubset: function ( obj, other ) {
@@ -1622,7 +1625,7 @@
         return RUNTIME.helper.html( { class: 'ccm_loading', inner: { style: 'display: inline-block; width: 0.5em; height: 0.5em; border: 0.15em solid #009ee0; border-right-color: transparent; border-radius: 50%; animation: ccm_loading 1s linear infinite;' } } );
       },
 
-      log: message => console.log( '[ccm]', message ),
+      log: ( message ) => { console.log( '[ccm]', message ) },
 
       makeIterable: function ( array_like ) {
         return Array.prototype.slice.call( array_like );
@@ -1885,7 +1888,7 @@
 
       },
 
-      unescapeHTML: value => {
+      unescapeHTML: ( value ) => {
 
         const temp = document.createElement( 'div' );
         temp.innerHTML = value;
@@ -1899,7 +1902,6 @@
       wait: function ( time, callback ) {
         window.setTimeout( callback, time );
       }
-
     }
 
   };
