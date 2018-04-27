@@ -582,7 +582,7 @@
      * version number of the framework
      * @returns {ccm.types.version}
      */
-    version: () => '16.3.3',
+    version: () => '16.3.2',
 
     /** clears the cache of already loaded resources */
     clear: () => { cache = {}; },

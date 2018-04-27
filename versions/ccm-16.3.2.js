@@ -2,10 +2,8 @@
  * @overview ccm framework
  * @author André Kless <andre.kless@web.de> 2014-2018
  * @license The MIT License (MIT)
- * @version latest (16.3.3)
+ * @version 16.3.2
  * @changes
- * version 16.3.3 (27.04.2018):
- * - bugfix for solving data dependencies
  * version 16.3.2 (27.04.2018):
  * - bugfix for using IndexedDB
  * - correct return values on store.set operations at data level 1 and 2
@@ -321,7 +319,7 @@
       function solveDependencies( value, callback ) {
 
         // no array or object passed? => abort and perform callback with NULL
-        if ( !Array.isArray( value ) && !self.helper.isObject( value) ) return callback( value );
+        if ( !Array.isArray() && !self.helper.isObject() ) return callback( value );
 
         /**
          * unfinished asynchronous operations
@@ -329,11 +327,7 @@
          */
         let counter = 1;
 
-        // start recursive search for data dependencies
         recursive( value );
-
-        // check if all data dependencies are solved (in case none exist)
-        check();
 
         function recursive( arr_or_obj ) {
 
@@ -342,12 +336,15 @@
             const value = arr_or_obj[ i ];
 
             // is a data dependency? => solve it
-            if ( Array.isArray( value ) && value.length > 0 && value[ 0 ] === 'ccm.get' ) solveDependency( value, arr_or_obj, i );
+            if ( Array.isArray( value && value.length > 0 && value[ 0 ] === 'ccm.get' ) ) solveDependency( value, arr_or_obj, i );
 
             // is an array or object? => search it recursively
             else if ( Array.isArray( value ) || ( self.helper.isObject( value ) && !self.helper.isNode( value ) && !self.helper.isInstance( value ) ) ) recursive( value );
 
           }
+
+          // check if all data dependencies are solved (in case none exist)
+          check();
 
         }
 
@@ -582,7 +579,7 @@
      * version number of the framework
      * @returns {ccm.types.version}
      */
-    version: () => '16.3.3',
+    version: () => '16.3.2',
 
     /** clears the cache of already loaded resources */
     clear: () => { cache = {}; },
