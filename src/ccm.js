@@ -842,9 +842,9 @@
       }
     },
 
-    get: ( settings, key_or_query, callback ) => {
+    get: function ( settings, key_or_query, callback ) {
 
-      RUNTIME.store( settings, (store) => {
+      this.store( settings, function (store) {
         let property;
 
         if ( typeof key_or_query === 'string' ) {
@@ -854,16 +854,28 @@
         }
 
         store.get( key_or_query, (result) => {
-          let ret = property ? RUNTIME.helper.deepValue( result, property ) : result;
+          console.log("THIS:", this)
+          let ret = property ? this.helper.deepValue( result, property ) : result;
 
           callback( ret );
         });
       })
     },
 
-    set: ( settings, priodata, callback ) => RUNTIME.store( settings, store => store.set( priodata, callback ) ),
+    set: function ( settings, priodata, callback ) {
 
-    del: ( settings, key, callback ) => RUNTIME.store( settings, store => store.del( key, callback ) ),
+      this.store( settings, function ( store ) {
+        store.set(priodata, callback)
+      })
+
+    },
+
+    del: function ( settings, key, callback ) {
+
+      this.store( settings, function ( store ) {
+        store.del( key, callback )
+      })
+    },
 
     context: {
 
