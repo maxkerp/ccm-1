@@ -1,5 +1,5 @@
 
-const expect = require('chai').expect;
+const expect = chai.expect;
 
 describe('First Spec', function () {
 

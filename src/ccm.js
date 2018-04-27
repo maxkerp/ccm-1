@@ -865,7 +865,6 @@
 
     del: ( settings, key, callback ) => RUNTIME.store( settings, store => store.del( key, callback ) ),
 
-
     context: {
 
       find: ( instance, property, not_me ) => {
