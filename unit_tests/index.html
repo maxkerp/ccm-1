@@ -2,16 +2,18 @@
 <meta charset="utf-8">
 
 <fieldset>
-  If you visit this web page directly from GitHub, the unit tests will not work. The unit tests work when the <i>ccm</i> repository is checked out and the web page is opened via a localhost server.
+  If you visit this web page directly from GitHub, the unit tests will not
+  work. The unit tests work when the <i>ccm</i> repository is checked out and
+  the web page is opened via a localhost server.
 </fieldset>
 <script>
   if ( document.location.host !== 'akless.github.io' )
     document.querySelector( 'fieldset' ).remove();
 </script>
 
-<script src="../ccm.js"></script>
+<script src="../src/ccm.js"></script>
 <script>
-  ccm.components.testsuite = { ccm: '../ccm.js' };
+  ccm.components.testsuite = { ccm: '../src/ccm.js' };
 </script>
 <script src="https://ccmjs.github.io/akless-components/testsuite/versions/ccm.testsuite-1.0.0.js"></script>
 <ccm-testsuite-1-0-0>

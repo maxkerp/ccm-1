@@ -1231,15 +1231,15 @@ ccm.files[ 'ccm-tests.js' ] = {
     },
     onFinish: {
       tests: {
-        'login': suite => {
-          suite.ccm.instance( 'https://ccmjs.github.io/akless-components/user/versions/ccm.user-2.0.0.js', user =>
-            user.logout( () =>
-              suite.$.onFinish( { user: user, onfinish: { login: true, callback: () =>
-                suite.assertTrue( user.isLoggedIn() )
-              } } )
-            )
-          );
-        },
+        // 'login': suite => {
+        //   suite.ccm.instance( 'https://ccmjs.github.io/akless-components/user/versions/ccm.user-2.0.0.js', user =>
+        //     user.logout( () =>
+        //       suite.$.onFinish( { user: user, onfinish: { login: true, callback: () =>
+        //         suite.assertTrue( user.isLoggedIn() )
+        //       } } )
+        //     )
+        //   );
+        // },
         'log': suite => {
           const original = console.log;
           console.log = data => {
@@ -1325,48 +1325,48 @@ ccm.files[ 'ccm-tests.js' ] = {
           } );
         },
         tests: {
-          'simple': suite => {
-            suite.store.parent.onfinish = {
-              store: { settings: suite.settings, key: 'test' },
-              callback: () => suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) )
-            };
-            suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
-          },
-          'user': suite => {
-            suite.store.parent.onfinish = {
-              login: true,
-              store: { settings: suite.settings, key: 'test', user: true },
-              callback: () => suite.store.get( [ 'guest', 'test' ], result => suite.assertEquals( { foo: 'bar', key: [ 'guest', 'test' ] }, result ) )
-            };
-            suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
-          },
-          'userNoInstance': suite => {
-            delete suite.store.parent.user;
-            suite.store.parent.onfinish = {
-              login: true,
-              store: { settings: suite.settings, key: 'test', user: true },
-              callback: () => suite.store.get( [ 'guest', 'test' ], result =>
-                result === null ? suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) ) : suite.failed( 'user-specific key exists' )
-              )
-            };
-            suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
-          },
-          'userLoggedOut': suite => {
-            suite.store.parent.onfinish = {
-              store: { settings: suite.settings, key: 'test', user: true },
-              callback: () => suite.store.get( [ 'guest', 'test' ], result =>
-                result === null ? suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) ) : suite.failed( 'user-specific key exists' )
-              )
-            };
-            suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
-          },
-          'permissions': suite => {
-            suite.store.parent.onfinish = {
-              store: { settings: suite.settings, key: 'test', permissions: 'baz' },
-              callback: () => suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test', '_': 'baz' }, result ) )
-            };
-            suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
-          }
+          // 'simple': suite => {
+          //   suite.store.parent.onfinish = {
+          //     store: { settings: suite.settings, key: 'test' },
+          //     callback: () => suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) )
+          //   };
+          //   suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
+          // },
+          // 'user': suite => {
+          //   suite.store.parent.onfinish = {
+          //     login: true,
+          //     store: { settings: suite.settings, key: 'test', user: true },
+          //     callback: () => suite.store.get( [ 'guest', 'test' ], result => suite.assertEquals( { foo: 'bar', key: [ 'guest', 'test' ] }, result ) )
+          //   };
+          //   suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
+          // },
+          // 'userNoInstance': suite => {
+          //   delete suite.store.parent.user;
+          //   suite.store.parent.onfinish = {
+          //     login: true,
+          //     store: { settings: suite.settings, key: 'test', user: true },
+          //     callback: () => suite.store.get( [ 'guest', 'test' ], result =>
+          //       result === null ? suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) ) : suite.failed( 'user-specific key exists' )
+          //     )
+          //   };
+          //   suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
+          // },
+          // 'userLoggedOut': suite => {
+          //   suite.store.parent.onfinish = {
+          //     store: { settings: suite.settings, key: 'test', user: true },
+          //     callback: () => suite.store.get( [ 'guest', 'test' ], result =>
+          //       result === null ? suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test' }, result ) ) : suite.failed( 'user-specific key exists' )
+          //     )
+          //   };
+          //   suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
+          // },
+          // 'permissions': suite => {
+          //   suite.store.parent.onfinish = {
+          //     store: { settings: suite.settings, key: 'test', permissions: 'baz' },
+          //     callback: () => suite.store.get( 'test', result => suite.assertEquals( { foo: 'bar', key: 'test', '_': 'baz' }, result ) )
+          //   };
+          //   suite.$.onFinish( suite.store.parent, { foo: 'bar' } );
+          // }
         },
         finally: ( suite, callback ) => suite.store.del( 'test', () => suite.store.del( [ 'guest', 'test' ], callback ) )
       }
