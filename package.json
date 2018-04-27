@@ -1,0 +1,16 @@
+{
+  "name": "ccm",
+  "version": "16.3.1",
+  "description": "A component library for e-learning apps.",
+  "main": "index.js",
+  "repository": "git@github.com:maxkerp/ccm-1.git",
+  "author": "Maximilian Kerp",
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.1.1"
+  },
+  "scripts": {
+    "test": "mocha"
+  }
+}
