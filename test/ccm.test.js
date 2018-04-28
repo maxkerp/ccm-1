@@ -12,6 +12,7 @@ describe('CCM', function () {
   describe('.orbit()', function() {
 
     describe('Creating an orbit docstore', function (){
+
       describe('.orbti(store: "< name >", callback)', function (){
 
         it('creates a docstore')
@@ -19,17 +20,6 @@ describe('CCM', function () {
 
     })
 
-    describe('Replicating an orbit docstore', function (){
-
-    })
-
-    describe('Creating an orbit docstore', function (){
-
-    })
-
-    describe('Creating an orbit docstore', function (){
-
-    })
   })
 
   describe('.ipfs()', function () {
