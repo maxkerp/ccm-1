@@ -11,9 +11,12 @@
   <div id="fixtures"></div>
   <script src="../node_modules/mocha/mocha.js"></script>
   <script src="../node_modules/chai/chai.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ipfs/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/orbit-db@0.19.7/dist/dist/orbitdb.js"></script>
 
   <!-- Load source files starting here -->
   <script src="../src/ccm.js"></script>
+  <script src="../src/orbit-ccm.js"></script>
   <script>mocha.setup('bdd')</script>
   <script src="ccm.test.js"></script>
   <script>mocha.run();</script>
