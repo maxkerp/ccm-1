@@ -2,17 +2,34 @@
 // Create Module
 var  CCM = CCM || {};
 
+
 // Utils
 (function () {
 
   Utils = {
 
-    log: function (string) {
+    isObject: function (obj) {
+      return obj === Object(obj)
+    },
+
+    log: function () {
       var messages = document.querySelector('#messages'),
           code     = document.createElement('pre'),
-          log      = document.createElement('p')
+          log      = document.createElement('p');
 
-      code.textContent = string
+      code.textContent = `[${new Date().toLocaleTimeString('de-DE')}]: `;
+
+      for (arg of arguments) {
+
+        if ( this.isObject(arg) ) {
+
+          code.textContent += JSON.stringify(arg) + " "
+        } else {
+
+          code.textContent += arg + " "
+        }
+      }
+
       messages.appendChild(log.appendChild(code))
     },
 
@@ -30,9 +47,22 @@ var  CCM = CCM || {};
   CCM.Utils = Utils
 })();
 
+var alias = function(fun, module = CCM.Utils) {
+  return module[fun].bind(module);
+};
+
 // Create aliases
-const put  = CCM.Utils.log;
-const wait = CCM.Utils.wait;
+var put;
+
+
+// Log to web page if possible
+if (document.querySelector('#messages')) {
+
+  put  = alias('log');
+} else {
+
+  put  = console.log;
+}
 
 // Store Class
 (function () {
@@ -77,26 +107,40 @@ const wait = CCM.Utils.wait;
 
     get(key, cb) {
       let value = this.docs.get(key).pop()
-      console.log(value)
 
       return cb ? cb(value) : value;
     }
 
     set(doc, cb) {
-      this.docs.put(doc)
+      this.docs.put(doc).then((hash) => {
 
-      return cb ? cb(doc) : doc;
+        put("Hash for", doc, "is", hash)
+        cb(this.get(doc.key));
+      })
     }
 
     del(key, cb) {
-      let doc = this.data[key]
-      delete this.data[key]
+      let doc  = this.get(key),
+          hash;
 
-      return cb ? cb(doc) : doc;
+      this.docs.del(key).then(function (res){
+
+        return hash = res
+      }).then(function (hash) {
+
+        cb(hash)
+      })
     }
 
     length() {
-      return Object.keys(this.data).length
+      return this.docs.query((doc) => true).length
+    }
+
+    clear(cb) {
+      this.docs.drop().then(function () {
+
+        cb();
+      })
     }
   }
 
@@ -110,64 +154,78 @@ const wait = CCM.Utils.wait;
 // Wrapper
 (function (){
 
-  class OrbitWrapper {
+  var OrbitWrapper = {
 
-    constructor(orbitInstance) {
-      this._orbit = orbitInstance
-    }
+    // May make these private
+    _orbit: null,
+    _node: null,
+    initialized: false,
 
-    create(options, cb) {
+    create: function (options, cb) {
       let docs = this._orbit.docs(options.name, { indexBy: 'key' })
 
       docs.then(async function (docs) {
-
+        // Wait for store to load
         await docs.load()
 
-        return docs;
-      }).then(function (docs) {
         let store = new CCM.Stores.Orbit(docs)
 
         return cb(store)
       })
-    }
+    },
 
-    static init(cb) {
-      if (CCM.orbit) {
+    init: function (cb) {
+      var self = this;
 
-        console.log("Orbit module has already been initialized.")
-        return;
-      }
+      var waitForOrbit = function () {
 
-      const config = {
-        EXPERIMENTAL: {
-          pubsub: true
+        if (self._orbit) {
+
+          cb(self)
+        } else {
+          put("still waiting for initialization to finish..")
+
+          setTimeout(waitForOrbit, 200)
         }
       }
-      const node = new Ipfs(config)
 
-      node.on('ready', () => {
-        put("IPFS node ready..")
+      if (this.initialized) {
+        put("Module.init() has already been called. Waiting for it to finish..")
 
-        const ORBIT = new OrbitDB(node)
-        put("Orbit successfully created..")
+        waitForOrbit()
+      } else {
+        this.initialized = true
 
-        CCM.orbit = new OrbitWrapper(ORBIT)
-        put("Orbit module initialized")
+        const config = {
+          EXPERIMENTAL: {
+            pubsub: true
+          }
+        }
+        this._node = new Ipfs(config)
 
-        if (cb) { cb() }
-      })
+        this._node.on('ready', () => {
+          put("IPFS node ready ✔")
+
+          const ORBIT = new OrbitDB(this._node)
+          this._orbit = ORBIT
+          put("OrbitDB created ✔")
+          put("Initialization done ✔")
+
+          if (cb) { cb(this) }
+        })
+      }
     }
   }
 
-  CCM.Orbit = OrbitWrapper
+  CCM.Orbit = OrbitWrapper;
+
 })();
 
 // Main
 (function () {
 
-  CCM.Orbit.init(function () {
+  CCM.Orbit.init(function (handle) {
 
-    put('Ready to use Orbit module.')
   });
 
 })();

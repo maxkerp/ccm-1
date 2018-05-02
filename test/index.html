@@ -4,15 +4,55 @@
   <meta charset="utf-8">
   <title>CCM Tests</title>
   <link rel="stylesheet" media="all" href="../node_modules/mocha/mocha.css">
+  <style>
+
+    #container {
+      width: 1300px;
+      margin: auto;
+    }
+    #messages {
+      background: black;
+      color: white;
+      font-size: large;
+      margin-top: 20px;
+      padding: 5px 0px 5px 10px;
+      min-height: 200px;
+      max-height: 350px;
+      overflow-y: scroll;
+    }
+
+    #messages pre {
+      margin: 0px;
+    }
+
+    #mocha-stats {
+      position: absolute;
+    }
+  </style>
 </head>
 <body>
-  <div id="mocha"><p><a href="./index.html">Index</a></p></div>
-  <div id="messages"></div>
-  <div id="fixtures"></div>
+  
+  <div id="container">
+
+    <div id="content">
+
+      <div id="mocha">
+        <p>
+          <a href="./index.html">Index</a>
+        </p>
+
+        <div id="messages">
+        </div>
+
+      </div>
+      <div id="fixtures"></div>
+    </div>
+  </div>
+
   <script src="../node_modules/mocha/mocha.js"></script>
   <script src="../node_modules/chai/chai.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ipfs/dist/index.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/orbit-db@0.19.7/dist/dist/orbitdb.js"></script>
+  <script src="./ipfs-0.28.2.js"></script>
+  <script src="./orbitdb-0.19.7.js"></script>
 
   <!-- Load source files starting here -->
   <script src="../src/ccm.js"></script>
