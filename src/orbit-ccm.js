@@ -31,6 +31,7 @@ var  CCM = CCM || {};
       }
 
       messages.appendChild(log.appendChild(code))
+      if (messages.scrollHeight) { messages.scrollTop = messages.scrollHeight }
     },
 
     wait: function () {
@@ -157,8 +158,8 @@ if (document.querySelector('#messages')) {
   var OrbitWrapper = {
 
     // May make these private
-    _orbit: null,
-    _node: null,
+    _orbit:      null,
+    _node:       null,
     initialized: false,
 
     create: function (options, cb) {
@@ -177,22 +178,39 @@ if (document.querySelector('#messages')) {
     init: function (cb) {
       var self = this;
 
-      var waitForOrbit = function () {
+      var waitForOrbit = function (timeout, tries, finished) {
+        var retries = 0;
 
-        if (self._orbit) {
+        (function wait() {
+          retries++
 
-          cb(self)
-        } else {
-          put("still waiting for initialization to finish..")
+          if (self._orbit) {
 
-          setTimeout(waitForOrbit, 200)
-        }
+            finished(false)
+          } else if ( retries === tries + 1 ) {
+
+            finished(true);
+          } else {
+            put(`still waiting for initialization to finish.. (${(retries * timeout)}ms)`)
+
+            setTimeout(wait, timeout)
+          }
+        }());
       }
 
       if (this.initialized) {
         put("Module.init() has already been called. Waiting for it to finish..")
 
-        waitForOrbit()
+        waitForOrbit(200, 10, function (retriesExceeded) {
+          if ( retriesExceeded ) {
+            put("Couldn't acquire handle, check for Errors")
+            return;
+          }
+
+          put("Handle acquired")
+          if (cb) { cb(this) }
+
+        })
       } else {
         this.initialized = true
 
@@ -226,6 +244,12 @@ if (document.querySelector('#messages')) {
 
   CCM.Orbit.init(function (handle) {
 
+    // handle.create("quizes", function (quizes){
+    //  quizes.get('se2.lect3.patterns', function (patternQuiz) {
+    //
+    //    ccm.instance('quiz', { data: patternQuiz })
+    //  })
+    // })
   });
 
 })();
