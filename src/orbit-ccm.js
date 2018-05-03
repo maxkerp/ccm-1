@@ -53,17 +53,17 @@ var alias = function(fun, module = CCM.Utils) {
 };
 
 // Create aliases
-var put;
+var put = console.log;
 
 
-// Log to web page if possible
-if (document.querySelector('#messages')) {
+// Overwrite logger if printing to web page is possible
+document.addEventListener('DOMContentLoaded', function () {
+  if (document.getElementById('messages')) { 
 
-  put  = alias('log');
-} else {
+    put  = alias('log');
+  }
+});
 
-  put  = console.log;
-}
 
 // Store Class
 (function () {
@@ -240,17 +240,21 @@ if (document.querySelector('#messages')) {
 })();
 
 // Main
-(function () {
+// (function () {
 
-  CCM.Orbit.init(function (handle) {
+//   CCM.Orbit.init(function (handle) {
 
-    // handle.create("quizes", function (quizes){
-    //  quizes.get('se2.lect3.patterns', function (patternQuiz) {
-    //
-    //    ccm.instance('quiz', { data: patternQuiz })
-    //  })
-    // })
-  });
+//      handle.create("quizes", function (quizes){
+//       quizes.get('se2.lect3.patterns', function (patternQuiz) {
 
-})();
+//         ccm.start('quiz', { data: patternQuiz })
+//       })
+//      })
+//   });
+
+// })();
+
+
+
+
 

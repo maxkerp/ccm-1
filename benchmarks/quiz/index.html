@@ -1,0 +1,103 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CCM Tests</title>
+  <!-- Dependencies for now -->
+  <script src="../../lib/ipfs-0.28.2.js"></script>
+  <script src="../../lib/orbitdb-0.19.7.js"></script>
+
+  <!-- Load source files starting here -->
+  <script src="../../src/ccm.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
+  <script src="ccm.quiz.js"></script>
+  <style>
+
+    #container {
+      width: 1300px;
+      margin: auto;
+    }
+    #messages {
+      background: black;
+      color: white;
+      font-size: large;
+      margin-top: 20px;
+      padding: 5px 0px 5px 10px;
+      min-height: 200px;
+      max-height: 350px;
+      overflow-y: scroll;
+    }
+
+    #messages pre {
+      margin: 0px;
+    }
+
+    #mocha-stats {
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+
+    <div id="content">
+
+      <div id="messages">
+
+      </div>
+
+      <div id="component">
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    var test_quiz = {
+      key: 'QmAbcd',
+      "questions": [
+        {
+          "text": "Is this questions a distributed stored questions?",
+          "description": "Does this document come from ipfs?",
+          "answers": [
+            {
+              "text": "Yes",
+              "comment": "Because we used orbit to fetch it"
+            },
+            "No",
+            "Whatever"
+          ],
+          "input": "radio",
+          "correct": 0
+        }
+      ]
+    };
+
+    quizConfig = {
+      "css": [ "ccm.load", "https://ccmjs.github.io/akless-components/quiz/resources/weblysleek.css", { "context": "head", "url": "https://ccmjs.github.io/akless-components/libs/weblysleekui/font.css" } ],
+      "feedback": true,
+      "navigation": true,
+      "placeholder.finish": "Restart",
+      "onfinish": { "restart": true },
+      "root": document.getElementById("component")
+    };
+
+    CCM.Orbit.init(function (handle) {
+
+      handle.create({name: "quizes"}, function (quizes) {
+
+        quizes.set(test_quiz, function (test_quiz) {
+          quizConfig.questions = test_quiz.questions;
+
+
+          ccm.start('quiz', quizConfig)
+        })
+      })
+    })
+
+  </script>
+</body>
+</html>
