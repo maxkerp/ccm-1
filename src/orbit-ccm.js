@@ -13,7 +13,7 @@ var  CCM = CCM || {};
     },
 
     log: function () {
-      var messages = document.querySelector('#messages'),
+      var messages = document.getElementById('messages'),
           code     = document.createElement('pre'),
           log      = document.createElement('p');
 
@@ -23,7 +23,7 @@ var  CCM = CCM || {};
 
         if ( this.isObject(arg) ) {
 
-          code.textContent += JSON.stringify(arg) + " "
+          code.textContent +=  `\n\n${ JSON.stringify(arg, null, 2) }\n\n`
         } else {
 
           code.textContent += arg + " "
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
     set(doc, cb) {
       this.docs.put(doc).then((hash) => {
 
-        put("Hash for", doc, "is", hash)
+        put("Added document with hash", hash, ". Document was:", doc)
         cb(this.get(doc.key));
       })
     }
@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
       docs.then(async function (docs) {
         // Wait for store to load
         await docs.load()
+        put(`Store ${options.name} loaded. Address is: ${docs.address}`)
 
         let store = new CCM.Stores.Orbit(docs)
 
@@ -217,6 +218,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const config = {
           EXPERIMENTAL: {
             pubsub: true
+          },
+          config: {
+            Addresses: {
+              Swarm: [
+                // Use IPFS dev signal server
+                // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
+                '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+                // Use local signal server
+                // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
+              ]
+            }
           }
         }
         this._node = new Ipfs(config)
