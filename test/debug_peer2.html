@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>CCM Debug</title>
+  <title>CCM Debug Peer 2</title>
   <!-- Dependencies for now -->
   <script src="../lib/ipfs-0.28.2.js"></script>
   <script src="../lib/orbitdb-0.19.7.js"></script>
@@ -46,22 +46,39 @@
       </div>
 
       <div id="component">
-
+        <input id="address" type="text" placeholder="Orbit Address"/>
+        <button id="replicate" type="button">Replicate</button>
       </div>
 
     </div>
   </div>
 
   <script>
+    const addressField    = document.getElementById("address")
+    const replicateButton = document.getElementById("replicate")
 
-    CCM.Orbit.init(function (handle) {
+    const replicateStore = function () {
+      if (addressField.value === '') {
+        throw new Error("Can't open a store without an valid address")
+      }
 
-      handle.create({name: "debugStore"}, function (debugStore) {
+      CCM.Orbit.init(function (handle) {
 
-        console.log(debugStore)
-        window.debugStore = debugStore
+        handle.create({name: addressField.value}, function (replicatedStore) {
+
+          console.log(replicatedStore)
+          window.replicatedStore = replicatedStore
+          replicatedStore.on('replicated', () => {
+
+            put("Synced with peer. Check for new Data.")
+          })
+        })
       })
-    })
+
+    }
+
+    replicateButton.addEventListener('click', replicateStore)
+
 
   </script>
 </body>

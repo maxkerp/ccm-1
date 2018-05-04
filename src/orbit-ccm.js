@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
       this.docs.put(doc).then((hash) => {
 
         put("Added document with hash", hash, ". Document was:", doc)
-        cb(this.get(doc.key));
+        return cb ? cb(this.get(doc.key)) : undefined
       })
     }
 
@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return hash = res
       }).then(function (hash) {
 
-        cb(hash)
+        return cb ? cb(hash) : undefined;
       })
     }
 
@@ -137,10 +137,29 @@ document.addEventListener('DOMContentLoaded', function () {
       return this.docs.query((doc) => true).length
     }
 
+    on(event, cb) {
+      // These need to be mapped to easier names, like 'updated': 'replicated'
+      const VALID_EVENTS = [
+        'replicated',
+        'replicate',
+        'replicate.progress',
+        'load',
+        'load.progress',
+        'ready',
+        'write'
+      ]
+
+      if (!VALID_EVENTS.includes(event)) {
+        throw new Error('Invalid event to listen on')
+      }
+
+      this.docs.events.on(event, cb)
+    }
+
     clear(cb) {
       this.docs.drop().then(function () {
 
-        cb();
+        return cb ? cb() : undefined
       })
     }
   }
