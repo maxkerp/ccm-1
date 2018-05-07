@@ -1,13 +1,30 @@
+// Name   : orbit-ccm.js
+// Date   : 07-05-2018
+// Author : Maximilian Kerp
+// License: MIT
+//
+// This file creates a module in the ccm namespace which exposes an api
+// to create and utilize distributed storage based on ipfs and orbit-db
 
-// Create Module
-var  CCM = CCM || {};
+(function (){
+  var Utils,
+      DStore;
 
+  // Don't create module twice
+  if (window.ccm.dstore) {
+    return;
+  }
 
-// Utils
-(function () {
+  // Create aliases and overwrite logger if printing to web page is possible
+  var put = console.log;
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('messages')) { 
+
+      put  = Utils.alias('log');
+    }
+  });
 
   Utils = {
-
     isObject: function (obj) {
       return obj === Object(obj)
     },
@@ -34,41 +51,11 @@ var  CCM = CCM || {};
       if (messages.scrollHeight) { messages.scrollTop = messages.scrollHeight }
     },
 
-    wait: function () {
-
-      return new Promise((resolve, _)  => {
-
-        setTimeout(function () {
-          resolve()
-        }, 5000, 'foo');
-      });
+    alias: function(fun, module = Utils) {
+      return module[fun].bind(module);
     }
   };
 
-  CCM.Utils = Utils
-})();
-
-var alias = function(fun, module = CCM.Utils) {
-  return module[fun].bind(module);
-};
-
-// Create aliases
-var put = console.log;
-
-
-// Overwrite logger if printing to web page is possible
-document.addEventListener('DOMContentLoaded', function () {
-  if (document.getElementById('messages')) { 
-
-    put  = alias('log');
-  }
-});
-
-
-// Store Class
-(function () {
-
-  // Object Store
   class Store {
 
     constructor() {
@@ -99,8 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Orbit Store
-  class OrbitStore {
+  class StoreWrapper {
 
     constructor(docs) {
       this.docs = docs
@@ -164,41 +150,58 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  const GLOBAL_STORE_ADDRESS = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
 
-  CCM.Stores = {
-    Object: Store,
-    Orbit: OrbitStore
-  };
-})();
-
-// Wrapper
-(function (){
-
-  var OrbitWrapper = {
-
-    // May make these private
+  DStore = {
     _orbit:      null,
-    _node:       null,
+    _ipfs:       null,
     initialized: false,
 
-    create: function (options, cb) {
-      let docs = this._orbit.docs(options.name, { indexBy: 'key' })
+    open: async function (address, options, cb) {
+      const defaultOptions = {
+        indexBy: 'key',
+      }
 
-      docs.then(async function (docs) {
-        // Wait for store to load
-        await docs.load()
-        put(`Store ${options.name} loaded. Address is: ${docs.address}`)
+      let permissions = {}
+      if (options && options.writeAll) {
+        permissions.admin = ['*']
+        permissions.write = ['*']
+      }
 
-        let store = new CCM.Stores.Orbit(docs)
 
-        return cb(store)
-      })
+      // So far, only writeAll has an effect on the options
+      let ops = Object.assign({}, permissions, defaultOptions)
+
+      let docs = this._orbit.docs(address, options)
+
+      await docs.load()
+      put(`Store ${docs.address} loaded.`)
+
+      let store = new StoreWrapper(docs)
+
+      return store;
     },
 
     init: function (cb) {
-      var self = this;
+      const self = this,
+            config = {
+              EXPERIMENTAL: {
+                pubsub: true
+              },
+              config: {
+                Addresses: {
+                  Swarm: [
+                    // Use IPFS dev signal server
+                    // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
+                    '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+                    // Use local signal server
+                    // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
+                  ]
+                }
+              }
+            };
 
-      var waitForOrbit = function (timeout, tries, finished) {
+      const waitForOrbit = function (timeout, tries, finished) {
         var retries = 0;
 
         (function wait() {
@@ -219,73 +222,123 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (this.initialized) {
-        put("Module.init() has already been called. Waiting for it to finish..")
+        put("dstore module is already getting initialized. Waiting for it to finish..")
 
         waitForOrbit(200, 10, function (retriesExceeded) {
           if ( retriesExceeded ) {
-            put("Couldn't acquire handle, check for Errors")
+            put("Couldn't acquire handle to module, check for Errors")
             return;
           }
 
-          put("Handle acquired")
+          put("dstore module initialized.")
           if (cb) { cb(this) }
 
         })
       } else {
         this.initialized = true
 
-        const config = {
-          EXPERIMENTAL: {
-            pubsub: true
-          },
-          config: {
-            Addresses: {
-              Swarm: [
-                // Use IPFS dev signal server
-                // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
-                '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
-                // Use local signal server
-                // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
-              ]
-            }
-          }
-        }
-        this._node = new Ipfs(config)
+        this._ipfs = new Ipfs(config)
 
-        this._node.on('ready', () => {
+        this._ipfs.on('error', (err) => { throw err })
+
+        this._ipfs.on('ready', () => {
           put("IPFS node ready ✔")
 
-          const ORBIT = new OrbitDB(this._node)
-          this._orbit = ORBIT
+          this._orbit = new OrbitDB(this._ipfs)
           put("OrbitDB created ✔")
-          put("Initialization done ✔")
 
+          this._orbit.open(GLOBAL_STORE_ADDRESS).then( (global_store) => { 
+            put("Global Store loaded ✔")
+            this.global = global_store
+          })
+
+          put("Initialization done ✔")
           if (cb) { cb(this) }
         })
       }
     }
   }
 
-  CCM.Orbit = OrbitWrapper;
+  // Promise-aware dstore function
+  const p_dstore = async function() {
+    var args     = arguments[0],//Array.prototype.slice.call(arguments),
+        callback = args.pop(),
+        options  = args[0],
+        store;
 
-})();
+    console.log("ARGS p_dstore: ", args)
+    if ( !Utils.isObject(options)  || !(options instanceof Object)) {
+      console.log(options)
+      throw new Error('First argument to .dstore() can only be a real object')
+    }
 
-// Main
-// (function () {
+    var address,
+        name,
+        writeAll = false || options.writeAll,
+        register = false || options.register;
 
-//   CCM.Orbit.init(function (handle) {
+    // Check if either passed in address or global address
+    if ( options.store.startsWith('/orbit/') ) {
+      // This tells us we don't wanna look in the global store
+      address = options.store
+    } else {
 
-//      handle.create("quizes", function (quizes){
-//       quizes.get('se2.lect3.patterns', function (patternQuiz) {
+      // Look in global store if neccessary
+      if ( DStore.global.get(options.store) ) { address = DStore.global.get(options.store) }
+    }
 
-//         ccm.start('quiz', { data: patternQuiz })
-//       })
-//      })
-//   });
+    // If we have no address we want to create one
+    // use permission options for that;
+    if (!address) {
 
-// })();
+      name  = options.store
+      store = await DStore.open(name, { writeAll })
+    } else {
+
+      store = await DStore.open(address, {})
+    }
+
+    address = store.address
+
+    // Register new store if wanted, also overwriting existing values
+    if (register) {
+      await DStore.global.set(name, address)
+    }
 
 
+    return store;
+  };
+
+  // Callback-aware dstore function wrapper
+  const cb_dstore = function() {
+    const args     = arguments[0], //Array.prototype.slice.call(arguments),
+          callback = args.pop()
+
+    console.log("ARGS cb_dstore: ", args)
+    const promise = p_dstore(args);
+
+    promise.then( function (wrappedStore) {
+      callback(wrappedStore)
+    }) 
+
+  }
+
+  const MODULE_SCOPE = this;
+
+  // One of initialization function
+  window.ccm['dstore'] = function () {
+    const args     = Array.prototype.slice.call(arguments);
+    console.log("ARGS one-of: ", args)
+
+    DStore.init(function () {
+
+      window.ccm['dstore'] = cb_dstore.bind(MODULE_SCOPE)
+      window.ccm.dstore(args);
+    });
+  }
+
+  console.log("DStore", DStore);
+}())
 
 
 

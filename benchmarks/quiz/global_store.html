@@ -2,14 +2,13 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>CCM Benchmark Quiz Index</title>
+  <title>CCM Benchmark Quiz Global Store</title>
   <!-- Dependencies for now -->
   <script src="../../lib/ipfs-0.28.2.js"></script>
   <script src="../../lib/orbitdb-0.19.7.js"></script>
 
   <!-- Load source files starting here -->
   <script src="../../src/ccm.js"></script>
-  <script src="../../src/orbit-ccm.js"></script>
   <script src="ccm.quiz.js"></script>
   <style>
 
@@ -55,35 +54,9 @@
 
   <script>
     window.LOG="debug"
-    var test_quiz = {
-      key: 'patterns',
-      "questions": [
-        {
-          "text": "Is this questions a distributed stored questions?",
-          "description": "Does this document come from ipfs?",
-          "answers": [
-            {
-              "text": "Yes",
-              "comment": "Because we used orbit to fetch it"
-            },
-            "No",
-            "Whatever"
-          ],
-          "input": "radio",
-          "correct": 0
-        }
-      ]
-    };
-
-    ccm.dstore({store: 'quizes', register: "se2.lec03.quizes"}, function (quizes) {
-
-      quizes.set(test_quiz, function () {
-
-        console.log(`Test quiz saved to ${quizes.address} with key ${test_quiz.key}`)
-      })
-    });
 
 
   </script>
+  <script src="../../src/orbit-ccm.js"></script>
 </body>
 </html>

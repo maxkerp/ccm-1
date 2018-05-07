@@ -62,29 +62,13 @@
   </div>
 
   <script>
-    quizConfig = {
-      "css": [ "ccm.load", "https://ccmjs.github.io/akless-components/quiz/resources/weblysleek.css", { "context": "head", "url": "https://ccmjs.github.io/akless-components/libs/weblysleekui/font.css" } ],
-      "feedback": true,
-      "navigation": true,
-      "placeholder.finish": "Restart",
-      "onfinish": { "restart": true },
-      "root": document.getElementById("component")
-    };
+    window.LOG="debug"
 
-    CCM.Orbit.init(function (handle) {
+    ccm.dstore({ store: "se2.lec03.quizes"}, function (store) {
 
-      // Note the orbit address needs to be the one stated by the benchmarks/quiz/index.html
-      handle.create({name: "/orbitdb/QmX8WL7NuPJVEH8DPHeomBwKw8Lhpq7HcnsKSnEtiorqbt/quizes"}, function (quizes) {
-
-        console.log(quizes)
-
-        quizes.get("QmAbcd", function (test_quiz) {
-          quizConfig.questions = test_quiz.questions;
-
-
-          ccm.start('quiz', quizConfig)
-        })
-      })
+      const patternQuestions = store.get('patterns')
+      console.log(`Fetched document patterns`, store)
+      ccm.start('quiz', { questions : patternQuestions, root: document.getElementById("component") })
     })
 
   </script>
