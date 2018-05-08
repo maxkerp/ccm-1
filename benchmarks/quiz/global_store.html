@@ -10,6 +10,7 @@
   <!-- Load source files starting here -->
   <script src="../../src/ccm.js"></script>
   <script src="ccm.quiz.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
   <style>
 
     #container {
@@ -53,10 +54,14 @@
   </div>
 
   <script>
-    window.LOG="debug"
+    window.LOG="debug";
 
+    ccm.dstore({ store: "se2.lec03.quizes" }, function (store) {
+
+      console.debug(`Following store has been registered as se2.lec03.quizes: ${store.address()}`)
+      window.quizes = store;
+    })
 
   </script>
-  <script src="../../src/orbit-ccm.js"></script>
 </body>
 </html>

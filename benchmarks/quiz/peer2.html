@@ -62,14 +62,49 @@
   </div>
 
   <script>
-    window.LOG="debug"
+    window.LOG="debug";
+    let quizConfig = {
+      "css": [ "ccm.load", "https://ccmjs.github.io/akless-components/quiz/resources/weblysleek.css", { "context": "head", "url": "https://ccmjs.github.io/akless-components/libs/weblysleekui/font.css" } ],
+      "feedback": true,
+      "navigation": true,
+      "placeholder.finish": "Restart",
+      "onfinish": { "restart": true },
+      "root": document.getElementById("component")
+    }
 
-    ccm.dstore({ store: "se2.lec03.quizes"}, function (store) {
+    function render () {
+      ccm.start('quiz', quizConfig)
+    }
 
-      const patternQuestions = store.get('patterns')
-      console.log(`Fetched document patterns`, store)
-      ccm.start('quiz', { questions : patternQuestions, root: document.getElementById("component") })
-    })
+    function getStore() {
+      ccm.dstore({store: 'se2.lec03.quizes'}, function (quizes) {
+
+        window.quizes = quizes;
+        // setTimeout(getQuestions, 2000)
+      })
+    }
+
+    function getQuestions() {
+      let doc = window.quizes.get('patterns')
+      console.debug(doc)
+
+      quizConfig.questions = doc.questions;
+
+      setTimeout(render, 2000)
+    }
+
+    ccm.dstore()
+
+    setTimeout(getStore, 20000)
+    // ccm.dstore({ store: "se2.lec03.quizes" }, function (store) {
+
+      // const patternQuestions = store.get('patterns')
+
+      // console.log(`Fetched document patterns`, patternQuestions)
+      // quizConfig.questions = patternQuestions;
+
+      // render()
+    // })
 
   </script>
 </body>

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>CCM Debug Peer 2</title>
   <!-- Dependencies for now -->
+  <script src="./buffer.js"></script>
   <script src="../lib/ipfs-0.28.2.js"></script>
   <script src="../lib/orbitdb-0.19.7.js"></script>
 
@@ -54,8 +55,17 @@
   </div>
 
   <script>
+    const Buffer = buffer.Buffer;
     const addressField    = document.getElementById("address")
     const replicateButton = document.getElementById("replicate")
+
+    const putObject = function (handle) {
+      // A hack to force peers to connect
+      handle._node.object.put(new Buffer(JSON.stringify({ app: 'ccm.orbit.debug' })))
+        .then((res) => this._ipfs.object.get(res.toJSON().multihash, { enc: 'base58' }))
+        .catch((err) => logger.error(err))
+
+    }
 
     const replicateStore = function () {
       if (addressField.value === '') {
@@ -64,15 +74,7 @@
 
       CCM.Orbit.init(function (handle) {
 
-        handle.create({name: addressField.value}, function (replicatedStore) {
-
-          console.log(replicatedStore)
-          window.replicatedStore = replicatedStore
-          replicatedStore.on('replicated', () => {
-
-            put("Synced with peer. Check for new Data.")
-          })
-        })
+        putObject(handle)
       })
 
     }

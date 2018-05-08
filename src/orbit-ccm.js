@@ -16,11 +16,10 @@
   }
 
   // Create aliases and overwrite logger if printing to web page is possible
-  var put = console.log;
   document.addEventListener('DOMContentLoaded', function () {
-    if (document.getElementById('messages')) { 
+    if (document.getElementById('messages')) {
 
-      put  = Utils.alias('log');
+      window.console.debug = Utils.alias('log');
     }
   });
 
@@ -28,6 +27,16 @@
     isObject: function (obj) {
       return obj === Object(obj)
     },
+
+    isString: function (string) {
+      return (typeof string === 'string' || string instanceof String)
+    },
+
+    isOrbitAddress: function (string) {
+      return this.isString(string) && (string.startsWith('/orbit/') )
+    },
+
+
 
     log: function () {
       var messages = document.getElementById('messages'),
@@ -56,36 +65,6 @@
     }
   };
 
-  class Store {
-
-    constructor() {
-      this.data = {}
-    }
-
-    get(key, cb) {
-      let value = this.data[key]
-
-      return cb ? cb(value) : value;
-    }
-
-    set(doc, cb) {
-      this.data[doc.key] = doc
-
-      return cb ? cb(doc) : doc;
-    }
-
-    del(key, cb) {
-      let doc = this.data[key]
-      delete this.data[key]
-
-      return cb ? cb(doc) : doc;
-    }
-
-    length() {
-      return Object.keys(this.data).length
-    }
-  }
-
   class StoreWrapper {
 
     constructor(docs) {
@@ -101,7 +80,7 @@
     set(doc, cb) {
       this.docs.put(doc).then((hash) => {
 
-        put("Added document with hash", hash, ". Document was:", doc)
+        console.debug("Added document with hash", hash, ". Document was:", doc)
         return cb ? cb(this.get(doc.key)) : undefined
       })
     }
@@ -117,6 +96,10 @@
 
         return cb ? cb(hash) : undefined;
       })
+    }
+
+    address() {
+      return this.docs.address.toString()
     }
 
     length() {
@@ -142,24 +125,26 @@
       this.docs.events.on(event, cb)
     }
 
-    clear(cb) {
+    drop(cb) {
       this.docs.drop().then(function () {
 
-        return cb ? cb() : undefined
+        return cb ? cb() : true
       })
     }
   }
 
-  const GLOBAL_STORE_ADDRESS = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
+  const GLOBAL_ADRESS_STORE = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
+
 
   DStore = {
-    _orbit:      null,
-    _ipfs:       null,
     initialized: false,
-
+    global: null,
     open: async function (address, options, cb) {
+      await this.initialized;
+
       const defaultOptions = {
         indexBy: 'key',
+        maxHistory: 10
       }
 
       let permissions = {}
@@ -168,14 +153,12 @@
         permissions.write = ['*']
       }
 
-
       // So far, only writeAll has an effect on the options
       let ops = Object.assign({}, permissions, defaultOptions)
 
-      let docs = this._orbit.docs(address, options)
-
+      let docs = await this._orbit.docs(address, ops)
       await docs.load()
-      put(`Store ${docs.address} loaded.`)
+      console.debug(`Store ${docs.address} created/loaded.`)
 
       let store = new StoreWrapper(docs)
 
@@ -183,8 +166,31 @@
     },
 
     init: function (cb) {
-      const self = this,
-            config = {
+      if (!this.initialized) { this.initialized = this._boot() }
+
+      return this.initialized;
+    },
+
+    _orbit : null,
+
+    _ipfs  : null,
+
+    _boot: async function () {
+
+      if (!this.initialized) {
+        this._ipfs = await this._startIPFS()
+
+        this._orbit = new OrbitDB(this._ipfs)
+        console.debug("OrbitDB created ✔")
+
+        this.global = await this._orbit.open(GLOBAL_ADRESS_STORE)
+        await this.global.load()
+        console.debug("Global Store loaded ✔")
+      }
+    },
+
+    _startIPFS:  function () {  
+      const config = {
               EXPERIMENTAL: {
                 pubsub: true
               },
@@ -201,75 +207,28 @@
               }
             };
 
-      const waitForOrbit = function (timeout, tries, finished) {
-        var retries = 0;
+      return new Promise((resolve, reject) => {
+        const ipfs = new Ipfs(config)
 
-        (function wait() {
-          retries++
+        ipfs.on('error', reject)
+        ipfs.on('ready', () => {
+          console.debug("IPFS node ready ✔")
 
-          if (self._orbit) {
-
-            finished(false)
-          } else if ( retries === tries + 1 ) {
-
-            finished(true);
-          } else {
-            put(`still waiting for initialization to finish.. (${(retries * timeout)}ms)`)
-
-            setTimeout(wait, timeout)
-          }
-        }());
-      }
-
-      if (this.initialized) {
-        put("dstore module is already getting initialized. Waiting for it to finish..")
-
-        waitForOrbit(200, 10, function (retriesExceeded) {
-          if ( retriesExceeded ) {
-            put("Couldn't acquire handle to module, check for Errors")
-            return;
-          }
-
-          put("dstore module initialized.")
-          if (cb) { cb(this) }
-
+          resolve(ipfs);
         })
-      } else {
-        this.initialized = true
-
-        this._ipfs = new Ipfs(config)
-
-        this._ipfs.on('error', (err) => { throw err })
-
-        this._ipfs.on('ready', () => {
-          put("IPFS node ready ✔")
-
-          this._orbit = new OrbitDB(this._ipfs)
-          put("OrbitDB created ✔")
-
-          this._orbit.open(GLOBAL_STORE_ADDRESS).then( (global_store) => { 
-            put("Global Store loaded ✔")
-            this.global = global_store
-          })
-
-          put("Initialization done ✔")
-          if (cb) { cb(this) }
-        })
-      }
+      });
     }
   }
 
   // Promise-aware dstore function
-  const p_dstore = async function() {
-    var args     = arguments[0],//Array.prototype.slice.call(arguments),
-        callback = args.pop(),
-        options  = args[0],
-        store;
+  const p_dstore = async function(options) {
+    var store;
 
-    console.log("ARGS p_dstore: ", args)
-    if ( !Utils.isObject(options)  || !(options instanceof Object)) {
+    if ( !Utils.isObject(options) || !(options instanceof Object)) {
       console.log(options)
       throw new Error('First argument to .dstore() can only be a real object')
+    } else if ( options.store === 'global' ) {
+      return DStore.global;
     }
 
     var address,
@@ -278,66 +237,77 @@
         register = false || options.register;
 
     // Check if either passed in address or global address
-    if ( options.store.startsWith('/orbit/') ) {
+    if ( Utils.isOrbitAddress(options.store) ) {
       // This tells us we don't wanna look in the global store
       address = options.store
     } else {
 
       // Look in global store if neccessary
-      if ( DStore.global.get(options.store) ) { address = DStore.global.get(options.store) }
+      if ( DStore.global.get(options.store) ) {
+        address = DStore.global.get(options.store)
+        console.debug(`After looking in global, found address ${address}`)
+      }
     }
 
     // If we have no address we want to create one
-    // use permission options for that;
+    // use permission options for that
     if (!address) {
 
       name  = options.store
       store = await DStore.open(name, { writeAll })
+      address = store.address()
     } else {
 
       store = await DStore.open(address, {})
     }
 
-    address = store.address
-
     // Register new store if wanted, also overwriting existing values
     if (register) {
-      await DStore.global.set(name, address)
-    }
+      console.log('Trying to register key', register)
+      console.log('Address ',address)
+      
+      if ( Utils.isOrbitAddress(address) ) {
 
+        await DStore.global.set(register, address)
+      } else {
+
+        throw new Error(`Can't register anything but a valid orbit address. Address was ${register}`)
+      }
+    }
 
     return store;
   };
 
   // Callback-aware dstore function wrapper
   const cb_dstore = function() {
-    const args     = arguments[0], //Array.prototype.slice.call(arguments),
-          callback = args.pop()
+    const args     = Array.prototype.slice.call(arguments),
+          callback = args.pop(),
+          options  = args[0];
 
-    console.log("ARGS cb_dstore: ", args)
-    const promise = p_dstore(args);
+    const promise = p_dstore(options);
 
     promise.then( function (wrappedStore) {
       callback(wrappedStore)
-    }) 
+    })
 
   }
 
   const MODULE_SCOPE = this;
 
-  // One of initialization function
+  // Self destruct function
   window.ccm['dstore'] = function () {
-    const args     = Array.prototype.slice.call(arguments);
-    console.log("ARGS one-of: ", args)
+    const args = arguments;
 
-    DStore.init(function () {
+    DStore.init().then(function () {
 
+      console.debug("Initialization done.")
       window.ccm['dstore'] = cb_dstore.bind(MODULE_SCOPE)
-      window.ccm.dstore(args);
+
+      if (args.length !== 0) { window.ccm.dstore(...args); }
     });
   }
 
-  console.log("DStore", DStore);
+  window.DStore = DStore;
 }())
 
 
