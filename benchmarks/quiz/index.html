@@ -56,18 +56,14 @@
   <script>
     window.LOG="debug"
     var test_quiz = {
-      key: 'patterns',
+      key: 'orbitdb',
       "questions": [
         {
-          "text": "Is this questions a distributed stored questions?",
-          "description": "Does this document come from ipfs?",
+          "text": "What is orbitdb?",
           "answers": [
-            {
-              "text": "Yes",
-              "comment": "Because we used orbit to fetch it"
-            },
-            "No",
-            "Whatever"
+            "A library that utilzes CRDTs and ipfs to create distributed mutable storage",
+            "Some NASA project",
+            "Elon Musks new startup"
           ],
           "input": "radio",
           "correct": 0
@@ -75,13 +71,15 @@
       ]
     };
 
-    ccm.dstore({store: "se2.lec03.quizes" }, function (quizes) {
+    function doIt() {
+      ccm.dstore("se2.lec03.quizes", function (quizes) {
+        window.quizes = quizes
 
-      quizes.set(test_quiz, function () {
+        // quizes.set(test_quiz, function () { })
+      });
+    }
 
-        console.debug(`Test quiz saved to ${quizes.address()} with key ${test_quiz.key}`)
-      })
-    });
+    doIt()
 
 
   </script>

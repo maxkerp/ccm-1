@@ -72,39 +72,16 @@
       "root": document.getElementById("component")
     }
 
-    function render () {
-      ccm.start('quiz', quizConfig)
-    }
-
-    function getStore() {
-      ccm.dstore({store: 'se2.lec03.quizes'}, function (quizes) {
-
-        window.quizes = quizes;
-        // setTimeout(getQuestions, 2000)
-      })
-    }
-
-    function getQuestions() {
-      let doc = window.quizes.get('patterns')
-      console.debug(doc)
-
-      quizConfig.questions = doc.questions;
-
-      setTimeout(render, 2000)
-    }
 
     ccm.dstore()
+    ccm.dstore('se2.lec03.quizes', function (quizes) {
+      window.quizes = quizes;
+      let doc = quizes.get('patterns')
 
-    setTimeout(getStore, 20000)
-    // ccm.dstore({ store: "se2.lec03.quizes" }, function (store) {
+      quizConfig.questions = doc.questions;
+      ccm.start('quiz', quizConfig)
+    })
 
-      // const patternQuestions = store.get('patterns')
-
-      // console.log(`Fetched document patterns`, patternQuestions)
-      // quizConfig.questions = patternQuestions;
-
-      // render()
-    // })
 
   </script>
 </body>

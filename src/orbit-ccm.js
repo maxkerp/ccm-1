@@ -7,13 +7,37 @@
 // to create and utilize distributed storage based on ipfs and orbit-db
 
 (function (){
-  var Utils,
-      DStore;
 
   // Don't create module twice
   if (window.ccm.dstore) {
     return;
   }
+
+
+  // Dependencies
+
+  // From: https://stackoverflow.com/questions/21485545/is-there-a-way-to-tell-if-an-es6-promise-is-fulfilled-rejected-resolved 
+  function StatefulPromise(promise) {
+      // Don't create a wrapper for promises that can already be queried.
+      if (promise.isResolved) return promise;
+
+      var isResolved = false;
+      var isRejected = false;
+
+      // Observe the promise, saving the fulfillment in a closure scope.
+      var result = promise.then(
+         function(v) { isResolved = true; return v; }, 
+         function(e) { isRejected = true; throw e; });
+      result.isFulfilled = function() { return isResolved || isRejected; };
+      result.isResolved = function() { return isResolved; }
+      result.isRejected = function() { return isRejected; }
+      return result;
+  }
+
+  // End of Dependencies
+
+  const MODULE_SCOPE        = this;
+  const GLOBAL_ADRESS_STORE = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
 
   // Create aliases and overwrite logger if printing to web page is possible
   document.addEventListener('DOMContentLoaded', function () {
@@ -23,7 +47,8 @@
     }
   });
 
-  Utils = {
+  // Singelton
+  const Utils = {
     isObject: function (obj) {
       return obj === Object(obj)
     },
@@ -33,10 +58,8 @@
     },
 
     isOrbitAddress: function (string) {
-      return this.isString(string) && (string.startsWith('/orbit/') )
+      return this.isString(string) && (string.startsWith('/orbitdb/') )
     },
-
-
 
     log: function () {
       var messages = document.getElementById('messages'),
@@ -133,63 +156,226 @@
     }
   }
 
-  const GLOBAL_ADRESS_STORE = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
+  // Singelton
+  const AddressStore = {
+    init: async function (orbit) {
+      this._orbit = orbit
+      this.store = await this._orbit.open(GLOBAL_ADRESS_STORE)
 
+      await this.store.load()
 
-  DStore = {
-    initialized: false,
-    global: null,
-    open: async function (address, options, cb) {
-      await this.initialized;
+      const done = new Promise( function (resolve) { resolve(true) })
+      this.initialized = StatefulPromise(done)
+
+      console.debug(`AddressStore::init finished with address ${this.store.address}`)
+      return this;
+    },
+
+    register: async function (key, address) {
+      if ( Utils.isString(key) && Utils.isOrbitAddress(address) ) {
+        console.debug('[GlobalStore] Trying to register key', key)
+        console.debug('[GlobalStore] Address ', address)
+
+        await this._store.set(key, address)
+      } else {
+
+        throw new Error(`Couldn't register new store! Key: ${key} Address: ${address}`)
+      }
+    },
+
+    find: function (key) {
+      if (!this.initialized.isResolved()) {
+        throw new Error("Can't query AddressStore before initialization!")
+      }
+      console.debug(`AddressStore#find() called with key ${key}`)
+      console.log("A Index", JSON.stringify(this.store._index._index, null, 2))
+
+      if (Utils.isString(key)) {
+
+        let address = this.store.get(key)
+        console.log("Found address ", address, "for key ", key)
+        console.log(this)
+        console.log("Found address ", this.store.get(key), "for key ", key)
+        console.log("Found in index ", this.store._index._index[key], "for key ", key)
+
+        console.log("B Index", JSON.stringify(this.store._index._index, null, 2))
+        return address ? address : false
+      } else {
+
+        throw new Error(`Key must be a string! Was ${key}`, key)
+      }
+    },
+
+    all: function (cb) {
+      let addresses = this.store.all
+      console.debug('Found these addresses: ', addresses)
+
+      return cb ? cb(addresses) : addresses
+    }
+  };
+
+  // Singelton
+  const Controller = {
+    initialized  : false,
+    booted       : false,
+    addressStore : null,
+    _orbit       : null,
+    _ipfs        : null,
+
+    create: async function (name, options) {
+      console.debug(`Controller#create called with name ${name}`)
+      if (!this.initialized) {
+        throw new Error(`Can't create a store without prior initialization!`)
+
+      } else if (Utils.isOrbitAddress(name)) {
+        throw new Error(`Can't create a new store from a valid address! Address: ${name}`)
+
+      } else if (!Utils.isString(name)) {
+        throw new Error(`Can't create a new store without a proper name! Name: ${name}`)
+      }
+
+      let ops = {},
+          docs,
+          store;
 
       const defaultOptions = {
         indexBy: 'key',
-        maxHistory: 10
+        // Still deciding if this is neccessary
+        maxHistory: -1,
+        sync: true
       }
 
-      let permissions = {}
+      // Allow everybody to write to store?
       if (options && options.writeAll) {
-        permissions.admin = ['*']
-        permissions.write = ['*']
+        ops.admin = ['*']
+        ops.write = ['*']
       }
 
-      // So far, only writeAll has an effect on the options
-      let ops = Object.assign({}, permissions, defaultOptions)
+      ops  = Object.assign(defaultOptions, ops)
+      docs = await this._orbit.docs(name, ops)
 
-      let docs = await this._orbit.docs(address, ops)
       await docs.load()
-      console.debug(`Store ${docs.address} created/loaded.`)
 
-      let store = new StoreWrapper(docs)
+      store = new StoreWrapper(docs)
+      console.debug(`Store ${store.address()} created/loaded.`)
+
+      return store;
+    },
+
+    // FIXME: Sync is still not functional, a store gets only synced
+    // when a peer updates it.
+    // Check maxHistory, sync, replicate options and their effect!!!
+    open: async function (address) {
+      if (!this.initialized) {
+        throw new Error(`Can't open a store without prior initialization!`)
+      } else if (!Utils.isOrbitAddress(address)) {
+        throw new Error(`Trying to open a store without a valid address: ${address}. Use create instead.`)
+      }
+
+      const defaultOptions = {
+        indexBy: 'key',
+        // Still deciding if this is neccessary
+        maxHistory: 100,
+        sync: true
+      }
+
+      let docs,
+          store;
+
+      docs = await this._orbit.open(address, defaultOptions)
+      await docs.load()
+
+      store = new StoreWrapper(docs)
+      console.debug(`Store ${store.address()} opened`)
+
+      return store;
+    },
+
+    dispatch: async function(arg) {
+      let store,
+          address;
+
+      const tryOpen = async (string) => {
+        console.debug(`Entered tryOpen with input ${string}`)
+        let address,
+            key;
+
+        if ( Utils.isOrbitAddress(string) ) {
+
+          address = string
+
+        } else if (this.addressStore.find(string)) {
+          key = string
+
+          address = this.addressStore.find(string)
+          console.debug(`Found store registered as ${key}. Address is ${address}`)
+        } else {
+
+          throw new Error(`Can't open store. Address neither valid, nor registered! Adress: ${address}`)
+        }
+
+        store = await this.open(address)
+
+        return store
+      }
+
+      const tryCreateAndRegister = async (obj) => {
+        const name     = obj.name,
+              writeAll = false || obj.writeAll,
+              key      = false || obj.register;
+
+        let store;
+
+        store = await this.create(name, { writeAll })
+
+        if (key) {
+
+          this.addressStore.register(key, store.address())
+        }
+
+        return store;
+      }
+
+      if (Utils.isString(arg)) {
+        console.debug(`Calling tryOpen with ${arg}`)
+        store = await tryOpen(arg)
+
+      } else if (Utils.isObject(arg) || (arg instanceof Object))   {
+        store = await tryCreateAndRegister(arg)
+
+      } else {
+        throw new Error('Wrong type of Arguments used!')
+      }
 
       return store;
     },
 
     init: function (cb) {
-      if (!this.initialized) { this.initialized = this._boot() }
+      if (!this.booted) { this.booted = this._boot() }
 
-      return this.initialized;
+      this.booted.then(() => {
+        this.initialized = true
+        console.debug("Initialization done ✔")
+
+        return cb ? cb(this) : true
+      })
     },
-
-    _orbit : null,
-
-    _ipfs  : null,
 
     _boot: async function () {
 
-      if (!this.initialized) {
+      if (!this.booted) {
         this._ipfs = await this._startIPFS()
 
         this._orbit = new OrbitDB(this._ipfs)
         console.debug("OrbitDB created ✔")
 
-        this.global = await this._orbit.open(GLOBAL_ADRESS_STORE)
-        await this.global.load()
-        console.debug("Global Store loaded ✔")
+        this.addressStore = await AddressStore.init(this._orbit)
+        await this.addressStore.initialized
+        console.debug("AddressStore loaded ✔")
       }
     },
 
-    _startIPFS:  function () {  
+    _startIPFS:  function () {
       const config = {
               EXPERIMENTAL: {
                 pubsub: true
@@ -220,94 +406,33 @@
     }
   }
 
-  // Promise-aware dstore function
-  const p_dstore = async function(options) {
-    var store;
-
-    if ( !Utils.isObject(options) || !(options instanceof Object)) {
-      console.log(options)
-      throw new Error('First argument to .dstore() can only be a real object')
-    } else if ( options.store === 'global' ) {
-      return DStore.global;
-    }
-
-    var address,
-        name,
-        writeAll = false || options.writeAll,
-        register = false || options.register;
-
-    // Check if either passed in address or global address
-    if ( Utils.isOrbitAddress(options.store) ) {
-      // This tells us we don't wanna look in the global store
-      address = options.store
-    } else {
-
-      // Look in global store if neccessary
-      if ( DStore.global.get(options.store) ) {
-        address = DStore.global.get(options.store)
-        console.debug(`After looking in global, found address ${address}`)
-      }
-    }
-
-    // If we have no address we want to create one
-    // use permission options for that
-    if (!address) {
-
-      name  = options.store
-      store = await DStore.open(name, { writeAll })
-      address = store.address()
-    } else {
-
-      store = await DStore.open(address, {})
-    }
-
-    // Register new store if wanted, also overwriting existing values
-    if (register) {
-      console.log('Trying to register key', register)
-      console.log('Address ',address)
-      
-      if ( Utils.isOrbitAddress(address) ) {
-
-        await DStore.global.set(register, address)
-      } else {
-
-        throw new Error(`Can't register anything but a valid orbit address. Address was ${register}`)
-      }
-    }
-
-    return store;
-  };
-
-  // Callback-aware dstore function wrapper
-  const cb_dstore = function() {
+  // Wrap dispatch for callback style usage
+  const dstore = function() {
     const args     = Array.prototype.slice.call(arguments),
-          callback = args.pop(),
-          options  = args[0];
+          callback = args.pop();
 
-    const promise = p_dstore(options);
-
-    promise.then( function (wrappedStore) {
-      callback(wrappedStore)
+    Controller.dispatch(...args).then(function (store) {
+      callback(store)
     })
-
   }
 
-  const MODULE_SCOPE = this;
-
-  // Self destruct function
+  // One time, self destruct function
   window.ccm['dstore'] = function () {
     const args = arguments;
 
-    DStore.init().then(function () {
+    Controller.init(function () {
+      window.ccm['dstore'] = dstore.bind(MODULE_SCOPE)
 
-      console.debug("Initialization done.")
-      window.ccm['dstore'] = cb_dstore.bind(MODULE_SCOPE)
-
-      if (args.length !== 0) { window.ccm.dstore(...args); }
+      // FIXME: Use at least a timeout
+      // Better would be to get notified when the AddressStore
+      // is fully synced
+      if (args.length !== 0) {
+        window.ccm.dstore(...args);
+      }
     });
   }
 
-  window.DStore = DStore;
+  window.Controller = Controller;
 }())
 
 
