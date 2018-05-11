@@ -37,7 +37,6 @@
   // End of Dependencies
 
   const MODULE_SCOPE        = this;
-  const GLOBAL_ADRESS_STORE = "/orbitdb/QmWxgYcUfjAnuna26UXrCUqsBV37scb8tMsHP5dNWWKnCE/global-ccm-store"
 
   // Create aliases and overwrite logger if printing to web page is possible
   document.addEventListener('DOMContentLoaded', function () {
@@ -156,21 +155,27 @@
     }
   }
 
+
   // Singelton
   const AddressStore = {
+    // public writeAll stores always have the same full address,
+    // since address creation is deterministic
+    name: "CCM.AdressStore",
+
     init: async function (orbit) {
+      const defaultOptions = {
+        type: 'docstore',
+        indexBy: 'key',
+        maxHistory: -1,
+        sync: true,
+        write: ["*"],
+        create: true
+      }
+
       this._orbit = orbit
-      this.store = await this._orbit.open(GLOBAL_ADRESS_STORE)
+      this.store = await this._orbit.open(this.name, defaultOptions)
 
       await this.store.load()
-
-      this.store.events.on('write', function (dbname, hash, entry) {
-        console.debug(`[AddressStore] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
-      })
-
-      this.store.events.on('replicated', function (dbname, length) {
-        console.debug(`[AddressStore] Synced with peer! ${dbname}! Length was:${ length }`)
-      })
 
       const done = new Promise( function (resolve) { resolve(true) })
       this.initialized = StatefulPromise(done)
@@ -226,8 +231,37 @@
       console.debug('[AddressStore#keys] found these keys: ', keys)
 
       return keys
+    },
+
+    _debug: function () {
+
+      this.store.events.on('write', function (dbname, hash, entry) {
+        console.debug(`[AddressStore] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
+      })
+
+      this.store.events.on('replicated', function (dbname, length) {
+        console.debug(`[AddressStore] Synced with peer! ${dbname}! Length was:${ length }`)
+      })
+
     }
   };
+
+  const ipfsConfig = {
+          EXPERIMENTAL: {
+            pubsub: true
+          },
+          config: {
+            Addresses: {
+              Swarm: [
+                // Use IPFS dev signal server
+                // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
+                '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+                // Use local signal server
+                // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
+              ]
+            }
+          }
+        };
 
   // Singelton
   const Controller = {
@@ -280,24 +314,26 @@
     // FIXME: Sync is still not functional, a store gets only synced
     // when a peer updates it.
     // Check maxHistory, sync, replicate options and their effect!!!
-    open: async function (address) {
+    // This
+    open: async function (address, options) {
       if (!this.initialized) {
         throw new Error(`Can't open a store without prior initialization!`)
-      } else if (!Utils.isOrbitAddress(address)) {
-        throw new Error(`Trying to open a store without a valid address: ${address}. Use create instead.`)
+      } else if (!options.write && !Utils.isOrbitAddress(address)) {
+        throw new Error(`Trying to open a private store without a valid address: ${address}.`)
       }
 
       const defaultOptions = {
         indexBy: 'key',
-        // Still deciding if this is neccessary
-        maxHistory: 100,
+        maxHistory: -1,
         sync: true
       }
+
+      const ops = Object.assign(options, defaultOptions)
 
       let docs,
           store;
 
-      docs = await this._orbit.open(address, defaultOptions)
+      docs = await this._orbit.open(address, ops)
       await docs.load()
 
       store = new StoreWrapper(docs)
@@ -310,8 +346,19 @@
       let store,
           address;
 
-      const tryOpen = async (string) => {
-        console.debug(`Entered tryOpen with input ${string}`)
+      const openPublicStore = async (name) => {
+        const publicStoreOptions = {
+          type: 'docstore',
+          create: true,
+          write: ["*"]
+        }
+
+        let store = await this.open(name, publicStoreOptions )
+        return store;
+      }
+
+      const openRegisteredStore = async (string) => {
+        console.debug(`openRegisteredStore ${string}`)
         let address,
             key;
 
@@ -351,9 +398,11 @@
         return store;
       }
 
+      // Only using a string argument means we're using a public
+      // store.
       if (Utils.isString(arg)) {
-        console.debug(`Calling tryOpen with ${arg}`)
-        store = await tryOpen(arg)
+        console.debug(`Opening public store: ${arg}`)
+        store = await openPublicStore(arg)
 
       } else if (Utils.isObject(arg) || (arg instanceof Object))   {
         store = await tryCreateAndRegister(arg)
@@ -391,25 +440,9 @@
     },
 
     _startIPFS:  function () {
-      const config = {
-              EXPERIMENTAL: {
-                pubsub: true
-              },
-              config: {
-                Addresses: {
-                  Swarm: [
-                    // Use IPFS dev signal server
-                    // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
-                    '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
-                    // Use local signal server
-                    // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
-                  ]
-                }
-              }
-            };
 
       return new Promise((resolve, reject) => {
-        const ipfs = new Ipfs(config)
+        const ipfs = new Ipfs(ipfsConfig)
 
         ipfs.on('error', reject)
         ipfs.on('ready', () => {
