@@ -16,7 +16,7 @@
 
   // Dependencies
 
-  // From: https://stackoverflow.com/questions/21485545/is-there-a-way-to-tell-if-an-es6-promise-is-fulfilled-rejected-resolved 
+  // From: https://stackoverflow.com/questions/21485545/is-there-a-way-to-tell-if-an-es6-promise-is-fulfilled-rejected-resolved
   function StatefulPromise(promise) {
       // Don't create a wrapper for promises that can already be queried.
       if (promise.isResolved) return promise;
@@ -26,7 +26,7 @@
 
       // Observe the promise, saving the fulfillment in a closure scope.
       var result = promise.then(
-         function(v) { isResolved = true; return v; }, 
+         function(v) { isResolved = true; return v; },
          function(e) { isRejected = true; throw e; });
       result.isFulfilled = function() { return isResolved || isRejected; };
       result.isResolved = function() { return isResolved; }
@@ -103,7 +103,7 @@
     set(doc, cb) {
       this.docs.put(doc).then((hash) => {
 
-        console.debug("Added document with hash", hash, ". Document was:", doc)
+        console.debug("[StoreWrapper#set] Address: ", this.address(), ". Document was:", doc)
         return cb ? cb(this.get(doc.key)) : undefined
       })
     }
@@ -164,19 +164,27 @@
 
       await this.store.load()
 
+      this.store.events.on('write', function (dbname, hash, entry) {
+        console.debug(`[AddressStore] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
+      })
+
+      this.store.events.on('replicated', function (dbname, length) {
+        console.debug(`[AddressStore] Synced with peer! ${dbname}! Length was:${ length }`)
+      })
+
       const done = new Promise( function (resolve) { resolve(true) })
       this.initialized = StatefulPromise(done)
 
-      console.debug(`AddressStore::init finished with address ${this.store.address}`)
+      console.debug(`[AddressStore::init] finished with address ${this.store.address}`)
       return this;
     },
 
     register: async function (key, address) {
       if ( Utils.isString(key) && Utils.isOrbitAddress(address) ) {
-        console.debug('[GlobalStore] Trying to register key', key)
-        console.debug('[GlobalStore] Address ', address)
+        console.debug('[AddressStore#register] Trying to register key', key)
+        console.debug('[AddressStore#register] Address ', address)
 
-        await this._store.set(key, address)
+        await this.store.set(key, address)
       } else {
 
         throw new Error(`Couldn't register new store! Key: ${key} Address: ${address}`)
@@ -187,7 +195,7 @@
       if (!this.initialized.isResolved()) {
         throw new Error("Can't query AddressStore before initialization!")
       }
-      console.debug(`AddressStore#find() called with key ${key}`)
+      console.debug(`[AddressStore#find] called with key ${key}`)
       console.log("A Index", JSON.stringify(this.store._index._index, null, 2))
 
       if (Utils.isString(key)) {
@@ -206,11 +214,18 @@
       }
     },
 
-    all: function (cb) {
+    all: function () {
       let addresses = this.store.all
-      console.debug('Found these addresses: ', addresses)
+      console.debug('[AddressStore#all] found these addresses: ', addresses)
 
-      return cb ? cb(addresses) : addresses
+      return addresses
+    },
+
+    keys: function() {
+      let keys = Object.keys(this.store._index._index)
+      console.debug('[AddressStore#keys] found these keys: ', keys)
+
+      return keys
     }
   };
 
@@ -432,8 +447,7 @@
     });
   }
 
-  window.Controller = Controller;
+  window.C = Controller;
 }())
-
 
 
