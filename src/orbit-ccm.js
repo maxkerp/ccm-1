@@ -89,20 +89,21 @@
 
   class StoreWrapper {
 
-    constructor(docs) {
-      this.docs = docs
+    constructor(store) {
+      this._store = store
     }
 
     get(key, cb) {
-      let value = this.docs.get(key).pop()
+      let value = this._store.get(key).pop()
 
+      console.debug(`[StoreWrapper#get] Key: ${key}, value: ${value}`)
       return cb ? cb(value) : value;
     }
 
     set(doc, cb) {
-      this.docs.put(doc).then((hash) => {
+      this._store.put(doc).then((hash) => {
 
-        console.debug("[StoreWrapper#set] Address: ", this.address(), ". Document was:", doc)
+        console.debug(`[StoreWrapper#get] Key: ${doc.key}, value: ${doc}`)
         return cb ? cb(this.get(doc.key)) : undefined
       })
     }
@@ -111,21 +112,34 @@
       let doc  = this.get(key),
           hash;
 
-      this.docs.del(key).then(function (res){
+      this._store.del(key).then(function (res){
 
         return hash = res
       }).then(function (hash) {
 
+        console.debug(`[StoreWrapper#del] Key: ${doc.key}, hash: ${hash}`)
         return cb ? cb(hash) : undefined;
       })
     }
 
     address() {
-      return this.docs.address.toString()
+      return this._store.address.toString()
+    }
+
+    all() {
+      return this._store.all
+    }
+
+    first() {
+      return this._store.all[0]
+    }
+
+    last() {
+      return this._store.all[this.length() - 1]
     }
 
     length() {
-      return this.docs.query((doc) => true).length
+      return this.keys().length
     }
 
     on(event, cb) {
@@ -144,14 +158,34 @@
         throw new Error('Invalid event to listen on')
       }
 
-      this.docs.events.on(event, cb)
+      this._store.events.on(event, cb)
+    }
+
+    keys() {
+      let keys = Object.keys(this._store._index._index)
+      console.debug('[StoreWrapper#keys] found these keys: ', keys)
+
+      return keys
     }
 
     drop(cb) {
-      this.docs.drop().then(function () {
+      this._store.drop().then(function () {
 
+        console.debug(`[StoreWrapper#drop] store dropped`)
         return cb ? cb() : true
       })
+    }
+
+    _debug() {
+
+      this._store.events.on('write', function (dbname, hash, entry) {
+        console.debug(`[StoreWrapper] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
+      })
+
+      this._store.events.on('replicated', function (dbname, length) {
+        console.debug(`[StoreWrapper] Synced with peer! ${dbname}! Length was:${ length }`)
+      })
+
     }
   }
 
@@ -433,9 +467,9 @@
         this._orbit = new OrbitDB(this._ipfs)
         console.debug("OrbitDB created ✔")
 
-        this.addressStore = await AddressStore.init(this._orbit)
-        await this.addressStore.initialized
-        console.debug("AddressStore loaded ✔")
+        // this.addressStore = await AddressStore.init(this._orbit)
+        // await this.addressStore.initialized
+        // console.debug("AddressStore loaded ✔")
       }
     },
 

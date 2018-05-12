@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CCM Collab</title>
+  <!-- Dependencies for now -->
+  <script src="../../lib/ipfs-0.28.2.js"></script>
+  <script src="../../lib/orbitdb-0.19.7.js"></script>
+
+  <!-- Load source files starting here -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js"></script>
+  <script src="../../src/ccm.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
+  <style>
+
+    #container {
+      margin          : auto;
+      padding-top     : 30px;
+      width           : 600px;
+    }
+
+    #controls {
+      display         : flex;
+      justify-content : space-between;
+      margin-bottom   : 12px;
+    }
+
+    #editor {
+      width: 600px;
+    }
+
+    #text {
+      box-sizing: border-box;
+      height : 500px;
+      margin : 0px;
+      resize : none;
+      width  : 100%;
+    }
+
+    #markdown {
+      width: 600px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="controls">
+
+      <span>
+        <select id="selectFile">
+        </select>
+        <button id="editorButton">Editor</button>
+        <button id="previewButton">Preview</button>
+      </span>
+
+      <span>
+        <label for="newFile">File:</label>
+        <input type="text" id="newFile" name="newFile"/>
+        <button id="newFileButton">New File</button>
+      </span>
+
+    </div>
+
+    <div id="editor">
+      <textarea id="text" name="textarea" ></textarea>
+    </div>
+
+    <div id="markdown" class="hidden">
+    </div>
+  </div>
+
+  <script>
+    const newFileName     = document.getElementById('newFile'),
+          newFileButton   = document.getElementById('newFileButton'),
+          selectFile      = document.getElementById('selectFile'),
+          textElement     = document.getElementById('text'),
+
+          editorButton    = document.getElementById('editorButton'),
+          previewButton   = document.getElementById('previewButton'),
+
+          editorElement   = document.getElementById('editor');
+          markdownElement = document.getElementById('markdown');
+
+          converter       = new showdown.Converter();
+
+    let store;
+
+    ccm.dstore("CCM.collab", (db) => {
+      window.db = db
+      store     = db
+
+      let fileNumber  = 0,
+          currentFile = null;
+
+      const updateFiles = () => {
+
+        const fileNames = store.keys();
+
+        // Empty selcet tag
+        selectFile.innerHTML = ''
+
+        fileNames.forEach((name) => {
+         const option = document.createElement('option')
+
+          option.value = name
+          option.text  = name
+          selectFile.appendChild(option)
+        })
+
+        fileNumber = fileNames.length
+      }
+
+      const updateMarkdown = () => {
+        const md = store.get(currentFile).data;
+
+        markdownElement.innerHTML = converter.makeHtml(md);
+      }
+
+      const updateText = () => {
+        textElement.value = store.get(currentFile).data
+      }
+
+      const setCurrentFile = (file) => {
+        currentFile = file
+
+        updateText()
+        updateMarkdown()
+      }
+
+      // Listen to sync in dstore and write to #data
+      store.on('replicated', () => {
+        if (fileNumber < store.length()) {
+          updateFiles()
+        }
+
+
+        if (!editorElement.classList.contains('hidden')) {
+          updateText()
+
+        } else if (!markdownElement.classList.contains('hidden')) {
+          updateMarkdown()
+        }
+      })
+
+      textElement.addEventListener('keyup', () => {
+        const editedText = textElement.value
+
+        store.set({ key: currentFile, data: editedText })
+      });
+
+      newFileButton.addEventListener('click', (e) => {
+        const file = newFileName.value
+
+        if (store.keys().includes(file)) { return }
+
+        store.set({key: file, data: ""}, () => {
+
+          updateFiles()
+          setCurrentFile(file)
+        })
+      })
+
+      previewButton.addEventListener('click', (e) => {
+        updateMarkdown()
+        editorElement.classList.toggle('hidden')
+        markdownElement.classList.toggle('hidden')
+      })
+
+      editorButton.addEventListener('click', (e) => {
+        updateText()
+        markdownElement.classList.toggle('hidden')
+        editorElement.classList.toggle('hidden')
+      })
+
+      selectFile.addEventListener('change', (e) => {
+        file = e.target.value;
+
+        setCurrentFile(file)
+      })
+
+      updateFiles()
+      setCurrentFile(store.first().key)
+    })
+
+  </script>
+</body>
+</html>
