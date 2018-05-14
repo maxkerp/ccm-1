@@ -186,7 +186,10 @@
       })
 
       updateFiles()
-      setCurrentFile(store.first().key)
+
+      if (store.first()) {
+        setCurrentFile(store.first().key)
+      }
     })
 
   </script>
