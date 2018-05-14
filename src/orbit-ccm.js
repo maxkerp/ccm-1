@@ -291,6 +291,7 @@
                 // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
                 '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
                 // Use local signal server
+                '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
                 // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
               ]
             }
@@ -377,6 +378,10 @@
     },
 
     dispatch: async function(arg) {
+      if (!this.initialized) {
+        throw new Error("Can't use module before initialization")
+      }
+
       let store,
           address;
 
@@ -508,6 +513,12 @@
       // FIXME: Use at least a timeout
       // Better would be to get notified when the AddressStore
       // is fully synced
+      // if (args.length !== 0) {
+      //   setTimeout(function (){
+
+      //     window.ccm.dstore(...args);
+      //   }, 1000)
+      // }
       if (args.length !== 0) {
         window.ccm.dstore(...args);
       }
