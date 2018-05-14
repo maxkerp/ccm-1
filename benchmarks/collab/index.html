@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CCM Collab</title>
+
+  <!-- Load source files starting here -->
+  <script src="./ccm.collab.js"></script>
+</head>
+<body>
+
+  <div id="component">
+
+  </div>
+
+  <script >
+
+    function go() {
+      ccm.start('collab', {root: document.getElementById('component')})
+    }
+
+    function go2() {
+      ccm.instance( 'collab', document.getElementById( 'component' ), instance => {
+        console.debug('Instantiated!!!!!!!!')
+        window.Collab = instance;
+        instance.start(function () {
+
+          console.debug('STARTED!!!!!!!!')
+        })
+      } );
+    }
+
+
+  </script>
+</body>
+</html>

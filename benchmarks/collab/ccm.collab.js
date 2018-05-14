@@ -12,37 +12,169 @@
 
     name: 'collab',
 
-    ccm: 'https://ccmjs.github.io/ccm/ccm.js',
-
+    ccm: '../../dist/bundle.js',
     config: {
-
-      "dstore": "CCM.collab"
+      "css"    : [ "ccm.load", "/home/make/College/gits/ccm/benchmarks/collab/collab.css" ],
+      "libs"   : [ "ccm.load", "https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js" ],
+      "dstore" : "CCM.collab2"
     },
 
     Instance: function () {
+      const TEMPLATE = `
+      <div id="collab-container">
+        <div id="collab-controls">
+
+          <span>
+            <select id="collab-selectFile">
+            </select>
+            <button id="collab-editorPreviewToggle">Preview</button>
+          </span>
+
+          <span>
+            <label for="collab-newFile">File:</label>
+            <input type="text" id="collab-newFile" name="newFile"/>
+            <button id="collab-newFileButton">New File</button>
+          </span>
+
+        </div>
+
+        <div id="collab-editor">
+          <textarea id="collab-text" name="textarea" ></textarea>
+        </div>
+
+        <div id="collab-markdown" class="hidden">
+        </div>
+      </div>
+      `;
 
       var self = this;
       var my;           // contains privatized instance members
 
       this.init = function ( callback ) {
-
+        this.root.innerHTML = TEMPLATE
       };
 
       this.ready = function ( callback ) {
-
-
       };
 
       this.start = function ( callback ) {
+        const newFileName         = document.getElementById('collab-newFile'),
+              newFileButton       = document.getElementById('collab-newFileButton'),
+              selectFile          = document.getElementById('collab-selectFile'),
+              textElement         = document.getElementById('collab-text'),
 
-        // has logger instance? => log 'render' event
-        if ( self.logger ) self.logger.log( 'render' );
+              editorPreviewToggle = document.getElementById('collab-editorPreviewToggle'),
 
-        start();
+              editorElement       = document.getElementById('collab-editor'),
+              markdownElement     = document.getElementById('collab-markdown');
 
-        if ( callback ) callback(self);
+
+        let store;
+
+        window.console.debug(self)
+
+        window.ccm.dstore("CCM.collab", (db) => {
+          window.db = db
+          store     = db
+
+          let fileNumber  = 0,
+              currentFile = null;
+
+          const updateFiles = () => {
+
+            const fileNames = store.keys();
+
+            // Empty selcet tag
+            selectFile.innerHTML = ''
+
+            fileNames.forEach((name) => {
+             const option = document.createElement('option')
+
+              option.value = name
+              option.text  = name
+              selectFile.appendChild(option)
+            })
+
+            fileNumber = fileNames.length
+          }
+
+          const updateMarkdown = () => {
+            const md = store.get(currentFile).data;
+
+            markdownElement.innerHTML = converter.makeHtml(md);
+          }
+
+          const updateText = () => {
+            textElement.value = store.get(currentFile).data
+          }
+
+          const setCurrentFile = (file) => {
+            currentFile = file
+
+            updateText()
+            updateMarkdown()
+          }
+
+          // Listen to sync in dstore and write to #data
+          store.on('replicated', () => {
+            if (fileNumber < store.length()) {
+              updateFiles()
+            }
+
+
+            if (!editorElement.classList.contains('hidden')) {
+              updateText()
+
+            } else if (!markdownElement.classList.contains('hidden')) {
+              updateMarkdown()
+            }
+          })
+
+          textElement.addEventListener('keyup', () => {
+            const editedText = textElement.value
+
+            store.set({ key: currentFile, data: editedText })
+          });
+
+          newFileButton.addEventListener('click', (e) => {
+            const file = newFileName.value
+
+            if (store.keys().includes(file)) { return }
+
+            store.set({key: file, data: ""}, (newFile) => {
+
+              updateFiles()
+              selectFile.value = newFile.key
+            })
+          })
+
+          editorPreviewToggle.addEventListener('click', (e) => {
+            const current = editorPreviewToggle.textContent
+
+            if (current === "Preview") {
+              editorPreviewToggle.textContent = "Editor"
+              updateMarkdown()
+            } else if (current === "Editor") {
+              editorPreviewToggle.textContent = "Preview"
+              updateText()
+            }
+
+            editorElement.classList.toggle('hidden')
+            markdownElement.classList.toggle('hidden')
+          })
+
+          selectFile.addEventListener('change', (e) => {
+            file = e.target.value;
+
+            setCurrentFile(file)
+          })
+
+          updateFiles()
+          setCurrentFile(store.first().key)
+        });
+
+      };
     }
-
   };
 
   function p(){window.ccm[v].component(component)}var f="ccm."+component.name+(component.version?"-"+component.version.join("."):"")+".js";if(window.ccm&&null===window.ccm.files[f])window.ccm.files[f]=component;else{var n=window.ccm&&window.ccm.components[component.name];n&&n.ccm&&(component.ccm=n.ccm),"string"==typeof component.ccm&&(component.ccm={url:component.ccm});var v=component.ccm.url.split("/").pop().split("-");if(v.length>1?(v=v[1].split("."),v.pop(),"min"===v[v.length-1]&&v.pop(),v=v.join(".")):v="latest",window.ccm&&window.ccm[v])p();else{var e=document.createElement("script");document.head.appendChild(e),component.ccm.integrity&&e.setAttribute("integrity",component.ccm.integrity),component.ccm.crossorigin&&e.setAttribute("crossorigin",component.ccm.crossorigin),e.onload=function(){p(),document.head.removeChild(e)},e.src=component.ccm.url}}

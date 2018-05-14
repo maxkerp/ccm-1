@@ -14,23 +14,23 @@
   <script src="../../src/orbit-ccm.js"></script>
   <style>
 
-    #container {
+    #collab-container {
       margin          : auto;
       padding-top     : 30px;
       width           : 600px;
     }
 
-    #controls {
+    #collab-controls {
       display         : flex;
       justify-content : space-between;
       margin-bottom   : 12px;
     }
 
-    #editor {
+    #collab-editor {
       width: 600px;
     }
 
-    #text {
+    #collab-text {
       box-sizing: border-box;
       height : 500px;
       margin : 0px;
@@ -38,7 +38,7 @@
       width  : 100%;
     }
 
-    #markdown {
+    #collab-markdown {
       width: 600px;
     }
 
@@ -49,45 +49,43 @@
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="controls">
+  <div id="collab-container">
+    <div id="collab-controls">
 
       <span>
-        <select id="selectFile">
+        <select id="collab-selectFile">
         </select>
-        <button id="editorButton">Editor</button>
-        <button id="previewButton">Preview</button>
+        <button id="collab-editorPreviewToggle">Preview</button>
       </span>
 
       <span>
-        <label for="newFile">File:</label>
-        <input type="text" id="newFile" name="newFile"/>
-        <button id="newFileButton">New File</button>
+        <label for="collab-newFile">File:</label>
+        <input type="text" id="collab-newFile" name="newFile"/>
+        <button id="collab-newFileButton">New File</button>
       </span>
 
     </div>
 
-    <div id="editor">
-      <textarea id="text" name="textarea" ></textarea>
+    <div id="collab-editor">
+      <textarea id="collab-text" name="textarea" ></textarea>
     </div>
 
-    <div id="markdown" class="hidden">
+    <div id="collab-markdown" class="hidden">
     </div>
   </div>
 
   <script>
-    const newFileName     = document.getElementById('newFile'),
-          newFileButton   = document.getElementById('newFileButton'),
-          selectFile      = document.getElementById('selectFile'),
-          textElement     = document.getElementById('text'),
+    const newFileName         = document.getElementById('collab-newFile'),
+          newFileButton       = document.getElementById('collab-newFileButton'),
+          selectFile          = document.getElementById('collab-selectFile'),
+          textElement         = document.getElementById('collab-text'),
 
-          editorButton    = document.getElementById('editorButton'),
-          previewButton   = document.getElementById('previewButton'),
+          editorPreviewToggle = document.getElementById('collab-editorPreviewToggle'),
 
-          editorElement   = document.getElementById('editor');
-          markdownElement = document.getElementById('markdown');
+          editorElement       = document.getElementById('collab-editor');
+          markdownElement     = document.getElementById('collab-markdown');
 
-          converter       = new showdown.Converter();
+          converter           = new showdown.Converter();
 
     let store;
 
@@ -159,23 +157,26 @@
 
         if (store.keys().includes(file)) { return }
 
-        store.set({key: file, data: ""}, () => {
+        store.set({key: file, data: ""}, (newFile) => {
 
           updateFiles()
-          setCurrentFile(file)
+          selectFile.value = newFile.key
         })
       })
 
-      previewButton.addEventListener('click', (e) => {
-        updateMarkdown()
-        editorElement.classList.toggle('hidden')
-        markdownElement.classList.toggle('hidden')
-      })
+      editorPreviewToggle.addEventListener('click', (e) => {
+        const current = editorPreviewToggle.textContent
 
-      editorButton.addEventListener('click', (e) => {
-        updateText()
-        markdownElement.classList.toggle('hidden')
+        if (current === "Preview") {
+          editorPreviewToggle.textContent = "Editor"
+          updateMarkdown()
+        } else if (current === "Editor") {
+          editorPreviewToggle.textContent = "Preview"
+          updateText()
+        }
+
         editorElement.classList.toggle('hidden')
+        markdownElement.classList.toggle('hidden')
       })
 
       selectFile.addEventListener('change', (e) => {

@@ -1,0 +1,31 @@
+#collab-container {
+  margin          : auto;
+  padding-top     : 30px;
+  width           : 600px;
+}
+
+#collab-controls {
+  display         : flex;
+  justify-content : space-between;
+  margin-bottom   : 12px;
+}
+
+#collab-editor {
+  width: 600px;
+}
+
+#collab-text {
+  box-sizing: border-box;
+  height : 500px;
+  margin : 0px;
+  resize : none;
+  width  : 100%;
+}
+
+#collab-markdown {
+  width: 600px;
+}
+
+.hidden {
+  display: none;
+}
