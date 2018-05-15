@@ -291,7 +291,7 @@
                 // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
                 '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
                 // Use local signal server
-                '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
+                // '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
                 // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
               ]
             }
@@ -346,8 +346,10 @@
       return store;
     },
 
-    // FIXME: Sync is still not functional, a store gets only synced
-    // when a peer updates it.
+    // FIXME: Sync is still not fully functional. 
+    // A store gets only synced when a peer updates it.
+    // This is the case when a store get really big, so when
+    // se OpLog exceeds ~ 500
     // Check maxHistory, sync, replicate options and their effect!!!
     // This
     open: async function (address, options) {

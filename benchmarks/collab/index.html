@@ -16,21 +16,9 @@
 
   <script >
 
-    function go() {
-      ccm.start('collab', {root: document.getElementById('component')})
+    function get(store = 'CCM.collab3') {
+      ccm.start('collab', { dstore: store, root: document.getElementById('component')})
     }
-
-    function go2() {
-      ccm.instance( 'collab', document.getElementById( 'component' ), instance => {
-        console.debug('Instantiated!!!!!!!!')
-        window.Collab = instance;
-        instance.start(function () {
-
-          console.debug('STARTED!!!!!!!!')
-        })
-      } );
-    }
-
 
   </script>
 </body>

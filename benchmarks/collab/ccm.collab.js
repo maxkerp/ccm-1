@@ -14,7 +14,7 @@
 
     ccm: '../../dist/bundle.js',
     config: {
-      "css"    : [ "ccm.load", "/home/make/College/gits/ccm/benchmarks/collab/collab.css" ],
+      "css"    : [ "ccm.load", "./collab.css" ],
       "libs"   : [ "ccm.load", "https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js" ],
       "dstore" : "CCM.collab2"
     },
@@ -51,29 +51,36 @@
       var my;           // contains privatized instance members
 
       this.init = function ( callback ) {
-        this.root.innerHTML = TEMPLATE
+        this.element.innerHTML = TEMPLATE
+
+        callback()
       };
 
       this.ready = function ( callback ) {
+
+        callback()
       };
 
       this.start = function ( callback ) {
-        const newFileName         = document.getElementById('collab-newFile'),
-              newFileButton       = document.getElementById('collab-newFileButton'),
-              selectFile          = document.getElementById('collab-selectFile'),
-              textElement         = document.getElementById('collab-text'),
+        window.console.debug('Start of start()')
+        const newFileName         = self.element.querySelector('#collab-newFile'),
+              newFileButton       = self.element.querySelector('#collab-newFileButton'),
+              selectFile          = self.element.querySelector('#collab-selectFile'),
+              textElement         = self.element.querySelector('#collab-text'),
 
-              editorPreviewToggle = document.getElementById('collab-editorPreviewToggle'),
+              editorPreviewToggle = self.element.querySelector('#collab-editorPreviewToggle'),
 
-              editorElement       = document.getElementById('collab-editor'),
-              markdownElement     = document.getElementById('collab-markdown');
+              editorElement       = self.element.querySelector('#collab-editor'),
+              markdownElement     = self.element.querySelector('#collab-markdown'),
+
+              converter           = new showdown.Converter();
 
 
         let store;
 
         window.console.debug(self)
 
-        window.ccm.dstore("CCM.collab", (db) => {
+        window.ccm.dstore(this.dstore, (db) => {
           window.db = db
           store     = db
 
@@ -96,6 +103,10 @@
             })
 
             fileNumber = fileNames.length
+
+            if (!currentFile && (fileNames.length > 0)) {
+              currentFile = fileNames[0]
+            }
           }
 
           const updateMarkdown = () => {
@@ -117,10 +128,16 @@
 
           // Listen to sync in dstore and write to #data
           store.on('replicated', () => {
+            console.debug("[Replicated] updating state..")
             if (fileNumber < store.length()) {
               updateFiles()
             }
 
+
+            if (!currentFile) {
+              console.debug('CurrentFile not set!')
+              return
+            }
 
             if (!editorElement.classList.contains('hidden')) {
               updateText()
@@ -170,9 +187,9 @@
           })
 
           updateFiles()
-          setCurrentFile(store.first().key)
         });
 
+        callback && callback()
       };
     }
   };
