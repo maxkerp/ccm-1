@@ -112,6 +112,10 @@
         })
 
         fileNumber = fileNames.length
+
+        if (!currentFile && (fileNames.length > 0)) {
+          currentFile = fileNames[0]
+        }
       }
 
       const updateMarkdown = () => {
@@ -121,6 +125,7 @@
       }
 
       const updateText = () => {
+        console.debug(`${ currentFile }`)
         textElement.value = store.get(currentFile).data
       }
 
@@ -133,8 +138,14 @@
 
       // Listen to sync in dstore and write to #data
       store.on('replicated', () => {
+        console.debug("[Replicated] updating state..")
         if (fileNumber < store.length()) {
           updateFiles()
+        }
+
+        if (!currentFile) {
+          console.debug('CurrentFile not set!')
+          return
         }
 
 
