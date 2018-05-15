@@ -12,7 +12,7 @@
 
     name: 'collab',
 
-    ccm: '../../dist/bundle.js',
+    ccm: 'https://raw.githubusercontent.com/maxkerp/ccm-1/thesis/dist/bundle.js',
     config: {
       "css"    : [ "ccm.load", "./collab.css" ],
       "libs"   : [ "ccm.load", "https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js" ],
