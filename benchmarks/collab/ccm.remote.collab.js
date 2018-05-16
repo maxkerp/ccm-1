@@ -107,7 +107,7 @@
             fileNumber = fileNames.length
 
             if (!currentFile && (fileNames.length > 0)) {
-              currentFile = fileNames[0]
+              setCurrentFile(fileNames[0])
             }
           }
 
