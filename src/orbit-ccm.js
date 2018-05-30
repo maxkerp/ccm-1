@@ -122,12 +122,23 @@
       })
     }
 
-    address() {
-      return this._store.address.toString()
-    }
-
     all() {
       return this._store.all
+    }
+
+    length() {
+      return this.keys().length
+    }
+
+    keys() {
+      let keys = Object.keys(this._store._index._index)
+      console.debug('[StoreWrapper#keys] found these keys: ', keys)
+
+      return keys
+    }
+
+    values() {
+      return undefined;
     }
 
     first() {
@@ -138,8 +149,16 @@
       return this._store.all[this.length() - 1]
     }
 
-    length() {
-      return this.keys().length
+    address() {
+      return this._store.address.toString()
+    }
+
+    drop(cb) {
+      this._store.drop().then(function () {
+
+        console.debug(`[StoreWrapper#drop] store dropped`)
+        return cb ? cb() : true
+      })
     }
 
     on(event, cb) {
@@ -159,21 +178,6 @@
       }
 
       this._store.events.on(event, cb)
-    }
-
-    keys() {
-      let keys = Object.keys(this._store._index._index)
-      console.debug('[StoreWrapper#keys] found these keys: ', keys)
-
-      return keys
-    }
-
-    drop(cb) {
-      this._store.drop().then(function () {
-
-        console.debug(`[StoreWrapper#drop] store dropped`)
-        return cb ? cb() : true
-      })
     }
 
     _debug() {
@@ -280,6 +284,7 @@
     }
   };
 
+  const localRendezvousServer = '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star';
   const ipfsConfig = {
           EXPERIMENTAL: {
             pubsub: true
@@ -288,11 +293,18 @@
             Addresses: {
               Swarm: [
                 // Use IPFS dev signal server
+                // Prefer websocket over webrtc
+                //
+                // Websocket:
+                // '/dns4/ws-star-signal-2.servep2p.com/tcp/443//wss/p2p-websocket-star',
+                // '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+                // Local signal server
+                // '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star'
+                //
+                // WebRTC:
                 // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
-                '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
-                // Use local signal server
+                // Local signal server
                 // '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
-                // '/ip4/0.0.0.0/tcp/9090/wss/p2p-webrtc-star',
               ]
             }
           }
@@ -454,6 +466,16 @@
 
       return store;
     },
+
+    connect: function() {
+      this._ipfs.swarm.connect(localRendezvousServer, function (err){
+        if (err) {
+          console.debug(err)
+        }
+      })
+    },
+
+
 
     init: function (cb) {
       if (!this.booted) { this.booted = this._boot() }
