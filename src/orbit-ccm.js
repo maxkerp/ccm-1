@@ -13,30 +13,49 @@
     return;
   }
 
+  const MODULE_SCOPE = this;
 
-  // Dependencies
+  const ipfsConfig = {
+          EXPERIMENTAL: {
+            pubsub: true
+          },
+          config: {
+            Addresses: {
+              Swarm: [
+                // Use IPFS dev signal server
+                // Prefer websocket over webrtc
+                //
+                // Websocket:
+                // '/dns4/ws-star-signal-2.servep2p.com/tcp/443//wss/p2p-websocket-star',
+                // '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+                // Local signal server
+                '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star'
+                //
+                // WebRTC:
+                // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
+                // Local signal server
+                // '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
+              ]
+            }
+          }
+        };
 
-  // From: https://stackoverflow.com/questions/21485545/is-there-a-way-to-tell-if-an-es6-promise-is-fulfilled-rejected-resolved
-  function StatefulPromise(promise) {
-      // Don't create a wrapper for promises that can already be queried.
-      if (promise.isResolved) return promise;
+  const localRendezvousServer = '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star';
 
-      var isResolved = false;
-      var isRejected = false;
-
-      // Observe the promise, saving the fulfillment in a closure scope.
-      var result = promise.then(
-         function(v) { isResolved = true; return v; },
-         function(e) { isRejected = true; throw e; });
-      result.isFulfilled = function() { return isResolved || isRejected; };
-      result.isResolved = function() { return isResolved; }
-      result.isRejected = function() { return isRejected; }
-      return result;
+  // Mandatory settings to follow convention:
+  // Always index by 'key', only allow docstores
+  const sharedStoreSettings = {
+    indexBy: 'key',
+    maxHistory: -1,
+    sync: true,
+    type: 'docstore'
   }
 
-  // End of Dependencies
+  // Prefix used to denote a registered address is used
+  const REGISTER_PREFIX = '$'
 
-  const MODULE_SCOPE        = this;
+  // Prefix used to lessen probability of name collisions
+  const SAVE_NAME_PREFIX = "CCM."
 
   // Create aliases and overwrite logger if printing to web page is possible
   document.addEventListener('DOMContentLoaded', function () {
@@ -104,7 +123,7 @@
       this._store.put(doc).then((hash) => {
 
         console.debug(`[StoreWrapper#get] Key: ${doc.key}, value: ${doc}`)
-        return cb ? cb(this.get(doc.key)) : undefined
+        cb && cb(doc)
       })
     }
 
@@ -118,7 +137,7 @@
       }).then(function (hash) {
 
         console.debug(`[StoreWrapper#del] Key: ${doc.key}, hash: ${hash}`)
-        return cb ? cb(hash) : undefined;
+        cb && cb(doc)
       })
     }
 
@@ -138,7 +157,7 @@
     }
 
     values() {
-      return undefined;
+      throw new Error('Not implemented')
     }
 
     first() {
@@ -193,49 +212,47 @@
     }
   }
 
-
   // Singelton
   const AddressStore = {
-    // public writeAll stores always have the same full address,
-    // since address creation is deterministic
-    name: "CCM.AdressStore",
+    // public store using this name
+    name: "CCM.AddressStore",
 
-    init: async function (orbit) {
+    init: async function (ipfs) {
       const defaultOptions = {
-        type: 'docstore',
-        indexBy: 'key',
+        // directory: './addresses',
+        // path: './addresses',
+        type: 'keyvalue',
         maxHistory: -1,
         sync: true,
         write: ["*"],
         create: true
       }
 
-      this._orbit = orbit
-      this.store = await this._orbit.open(this.name, defaultOptions)
+      this._ipfs = ipfs
+      this._orbit = new OrbitDB(this._ipfs, './adresses')
+      console.debug("AddressStore OrbitDB created ✔")
 
+      this.store = await this._orbit.open(this.name, defaultOptions)
       await this.store.load()
 
-      const done = new Promise( function (resolve) { resolve(true) })
-      this.initialized = StatefulPromise(done)
+      this.initialized = true
 
       console.debug(`[AddressStore::init] finished with address ${this.store.address}`)
       return this;
     },
 
     register: async function (key, address) {
-      if ( Utils.isString(key) && Utils.isOrbitAddress(address) ) {
-        console.debug('[AddressStore#register] Trying to register key', key)
-        console.debug('[AddressStore#register] Address ', address)
+      if (!Utils.isString(key))           { throw new Error(`Key must be a string! Was: ${key}`) }
+      if (!Utils.isOrbitAddress(address)) { throw new Error(`Address must be a valid orbit address! Was: ${address}`) }
 
-        await this.store.set(key, address)
-      } else {
+      await this.store.set(key, address)
+      console.debug(`[AddressStore#register] successfully registered ${key} with ${address} `)
 
-        throw new Error(`Couldn't register new store! Key: ${key} Address: ${address}`)
-      }
+      return key
     },
 
     find: function (key) {
-      if (!this.initialized.isResolved()) {
+      if (!this.initialized) {
         throw new Error("Can't query AddressStore before initialization!")
       }
       console.debug(`[AddressStore#find] called with key ${key}`)
@@ -244,13 +261,7 @@
       if (Utils.isString(key)) {
 
         let address = this.store.get(key)
-        console.log("Found address ", address, "for key ", key)
-        console.log(this)
-        console.log("Found address ", this.store.get(key), "for key ", key)
-        console.log("Found in index ", this.store._index._index[key], "for key ", key)
-
-        console.log("B Index", JSON.stringify(this.store._index._index, null, 2))
-        return address ? address : false
+        return address
       } else {
 
         throw new Error(`Key must be a string! Was ${key}`, key)
@@ -258,10 +269,7 @@
     },
 
     all: function () {
-      let addresses = this.store.all
-      console.debug('[AddressStore#all] found these addresses: ', addresses)
-
-      return addresses
+      return this.store._index._index
     },
 
     keys: function() {
@@ -269,6 +277,18 @@
       console.debug('[AddressStore#keys] found these keys: ', keys)
 
       return keys
+    },
+
+    addresses: function () {
+      return this.store.all
+    },
+
+    has: function(key) {
+      return this.keys().includes(key)
+    },
+
+    on: function(event, cb) {
+      this.store.events.on(event, cb)
     },
 
     _debug: function () {
@@ -284,37 +304,10 @@
     }
   };
 
-  const localRendezvousServer = '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star';
-  const ipfsConfig = {
-          EXPERIMENTAL: {
-            pubsub: true
-          },
-          config: {
-            Addresses: {
-              Swarm: [
-                // Use IPFS dev signal server
-                // Prefer websocket over webrtc
-                //
-                // Websocket:
-                // '/dns4/ws-star-signal-2.servep2p.com/tcp/443//wss/p2p-websocket-star',
-                // '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
-                // Local signal server
-                // '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star'
-                //
-                // WebRTC:
-                // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
-                // Local signal server
-                // '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
-              ]
-            }
-          }
-        };
-
   // Singelton
   const Controller = {
     initialized  : false,
     booted       : false,
-    addressStore : null,
     _orbit       : null,
     _ipfs        : null,
 
@@ -330,27 +323,25 @@
         throw new Error(`Can't create a new store without a proper name! Name: ${name}`)
       }
 
-      let ops = {},
+      let ops,
           docs,
           store;
 
-      const defaultOptions = {
-        indexBy: 'key',
-        // Still deciding if this is neccessary
-        maxHistory: -1,
-        sync: true
-      }
+      const saveName = SAVE_NAME_PREFIX + name
 
       // Allow everybody to write to store?
-      if (options && options.writeAll) {
-        ops.admin = ['*']
-        ops.write = ['*']
+      if (options && options.public === true) {
+        ops = Object.assign({ write: ["*"] }, sharedStoreSettings)
+
+      } else {
+
+        ops = Object.assign({ }, sharedStoreSettings)
       }
 
-      ops  = Object.assign(defaultOptions, ops)
-      docs = await this._orbit.docs(name, ops)
-
-      await docs.load()
+      // docs() implicitly creates a store if only name given
+      // else it opens a store
+      docs = await this._orbit.docs(saveName, ops)
+      // await docs.load()
 
       store = new StoreWrapper(docs)
       console.debug(`Store ${store.address()} created/loaded.`)
@@ -358,31 +349,17 @@
       return store;
     },
 
-    // FIXME: Sync is still not fully functional. 
-    // A store gets only synced when a peer updates it.
-    // This is the case when a store get really big, so when
-    // se OpLog exceeds ~ 500
-    // Check maxHistory, sync, replicate options and their effect!!!
-    // This
-    open: async function (address, options) {
+    open: async function (address) {
       if (!this.initialized) {
         throw new Error(`Can't open a store without prior initialization!`)
-      } else if (!options.write && !Utils.isOrbitAddress(address)) {
-        throw new Error(`Trying to open a private store without a valid address: ${address}.`)
+      } else if (!Utils.isOrbitAddress(address)) {
+        throw new Error(`Trying to open a store without a valid address: ${address}.`)
       }
-
-      const defaultOptions = {
-        indexBy: 'key',
-        maxHistory: -1,
-        sync: true
-      }
-
-      const ops = Object.assign(options, defaultOptions)
 
       let docs,
           store;
 
-      docs = await this._orbit.open(address, ops)
+      docs = await this._orbit.open(address, sharedStoreSettings)
       await docs.load()
 
       store = new StoreWrapper(docs)
@@ -391,78 +368,74 @@
       return store;
     },
 
-    dispatch: async function(arg) {
-      if (!this.initialized) {
+    dispatch: async function(options) {
+      if (!Utils.isString(options) && !Utils.isObject(options)) {
+        throw new Error('Wrong type of Arguments used!')
+      } else if (!this.initialized) {
         throw new Error("Can't use module before initialization")
       }
 
       let store,
           address;
 
-      const openPublicStore = async (name) => {
-        const publicStoreOptions = {
-          type: 'docstore',
-          create: true,
-          write: ["*"]
-        }
+      const createStore = async (name, public) => {
+        const ops = { public: true }
 
-        let store = await this.open(name, publicStoreOptions )
+        // Unless explicitly private all stores are public
+        if (public === false) { ops.public = false }
+
+        const store = await this.create(name, ops)
         return store;
       }
 
-      const openRegisteredStore = async (string) => {
-        console.debug(`openRegisteredStore ${string}`)
-        let address,
-            key;
+      const maybeRegisterStore = async (store) => {
+        if (!options.register) { return }
 
-        if ( Utils.isOrbitAddress(string) ) {
+        let   key;
+        const address = store.address()
 
-          address = string
-
-        } else if (this.addressStore.find(string)) {
-          key = string
-
-          address = this.addressStore.find(string)
-          console.debug(`Found store registered as ${key}. Address is ${address}`)
+        if (Utils.isString(options.register)) {
+          key = options.register
         } else {
-
-          throw new Error(`Can't open store. Address neither valid, nor registered! Adress: ${address}`)
+          key = options.name
         }
 
-        store = await this.open(address)
+        console.log('[dispatch] trying register')
+        await AddressStore.register(key, address)
+      }
+
+      const openRegisteredStore = async (key) => {
+        if (!AddressStore.has(key)) {
+          throw new Error(`Can't open store. Address not registered or no peer with matching replica found! Key: ${key}`)
+        }
+
+        const address = AddressStore.find(key)
+        console.debug(`[openRegisteredStore] Found store registered as ${key}. Address is ${address}`)
+
+        const store = await this.open(address)
 
         return store
       }
 
-      const tryCreateAndRegister = async (obj) => {
-        const name     = obj.name,
-              writeAll = false || obj.writeAll,
-              key      = false || obj.register;
+      // String argument means registered or public
+      if (Utils.isString(options)) {
 
-        let store;
+        if (options.startsWith(REGISTER_PREFIX)) {
+          console.debug('Opening registered store')
+          store = await openRegisteredStore(options.slice(1))
 
-        store = await this.create(name, { writeAll })
+        } else {
 
-        if (key) {
-
-          this.addressStore.register(key, store.address())
+          store = await createStore(options)
         }
 
-        return store;
+      // Object argument could mean public or private
+      } else if (Utils.isObject(options)) {
+
+        store = await createStore(options.name, options.public)
       }
 
-      // Only using a string argument means we're using a public
-      // store.
-      if (Utils.isString(arg)) {
-        console.debug(`Opening public store: ${arg}`)
-        store = await openPublicStore(arg)
-
-      } else if (Utils.isObject(arg) || (arg instanceof Object))   {
-        store = await tryCreateAndRegister(arg)
-
-      } else {
-        throw new Error('Wrong type of Arguments used!')
-      }
+      maybeRegisterStore(store)
 
       return store;
     },
@@ -474,8 +447,6 @@
         }
       })
     },
-
-
 
     init: function (cb) {
       if (!this.booted) { this.booted = this._boot() }
@@ -494,11 +465,8 @@
         this._ipfs = await this._startIPFS()
 
         this._orbit = new OrbitDB(this._ipfs)
-        console.debug("OrbitDB created ✔")
+        console.debug("Controller OrbitDB created ✔")
 
-        // this.addressStore = await AddressStore.init(this._orbit)
-        // await this.addressStore.initialized
-        // console.debug("AddressStore loaded ✔")
       }
     },
 
@@ -510,6 +478,8 @@
         ipfs.on('error', reject)
         ipfs.on('ready', () => {
           console.debug("IPFS node ready ✔")
+
+          AddressStore.init(ipfs)
 
           resolve(ipfs);
         })
@@ -549,7 +519,10 @@
     });
   }
 
-  window.C = Controller;
+  if (window.LOG === 'debug') {
+    window.C = Controller;
+    window.A = AddressStore;
+  }
 }())
 
 
