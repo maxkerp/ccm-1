@@ -107,8 +107,6 @@ function createA (name, writeAccess = false) {
   })
 }
 
-
-
 function createB(name = 'CCM.Debug', writeAccess = false, load = false) {
   const config = {
     EXPERIMENTAL: {
@@ -148,4 +146,20 @@ function createB(name = 'CCM.Debug', writeAccess = false, load = false) {
     })
   }, 1000)
 
+}
+
+function regPublic() {
+  ccm.dstore({name:'mkerp2s.test.public', register: true}, (db) => { window.db = db})
+}
+
+function openPublic() {
+  ccm.dstore('mkerp2s.test.public', (db) => { window.db = db })
+}
+
+function regPrivate() {
+  ccm.dstore({name:'mkerp2s.test.private', register: true, public: false}, (db) => { window.db = db})
+}
+
+function openPrivate() {
+  ccm.dstore('$mkerp2s.test.private', (db) => { window.db = db})
 }
