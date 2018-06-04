@@ -176,7 +176,7 @@
       await store.load()
       store.events.on("replicated", onReplicated)
       Utils.log(`Replica opned: ${address}`)
-      
+
       currentReplicatedStores.push(store)
     }
   }
@@ -205,7 +205,7 @@
     openReplicas(AddressStore.addresses(), { create: false })
 
     AddressStore.on("replicated", async () => {
-      
+
       // find newly registered store
       let newStores = arrayDifference(AddressStore.addresses(), [...currentReplicatedAddresses])
       Utils.log(`New stores registered: ${newStores}`)
