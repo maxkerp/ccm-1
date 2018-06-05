@@ -121,7 +121,7 @@
 
     set(doc, cb) {
       this._store.put(doc).then((hash) => {
-        console.debug(`[StoreWrapper#set] Set ${key}. Operation hash: ${hash}`)
+        console.debug(`[StoreWrapper#set] Set ${doc.key}. Operation hash: ${hash}`)
         cb && cb(doc)
       })
     }

@@ -29,6 +29,9 @@
     }
   };
 
+  // Prefix used to lessen probability of name collisions
+  const SAFE_NAME_PREFIX = "CCM."
+
   // Singelton
   const Utils = {
     isObject: function (obj) {
@@ -73,11 +76,10 @@
   // Singelton
   const AddressStore = {
     // public store using this name
-    name: "CCM.AddressStore",
-    address: "/orbitdb/QmXbUsQ15E6jzizgbTArnfov44b9gam5zu9kXrfR8e4Kgq/CCM.AddressStore",
+    name: SAFE_NAME_PREFIX + "AddressStore",
 
-    init: async function (orbit) {
-      const defaultOptions = {
+    init: async function (orbitdb) {
+      const ADDRESS_STORE_SETTINGS = {
         type: 'keyvalue',
         maxHistory: -1,
         sync: true,
@@ -85,81 +87,86 @@
         create: true
       }
 
-      this._orbit = orbit
-      this.store = await this._orbit.open(this.address, defaultOptions)
-      await this.store.load()
+      this._orbitdb = orbitdb
+      this._store = await this._orbitdb.open(this.name, ADDRESS_STORE_SETTINGS)
+      await this._store.load()
 
       this.initialized = true
 
-      console.debug(`[AddressStore::init] finished with address ${this.store.address}`)
       return this;
     },
 
     register: async function (key, address) {
       if (!Utils.isString(key))           { throw new Error(`Key must be a string! Was: ${key}`) }
-      if (!Utils.isOrbitAddress(address)) { throw new Error(`Address must be a valid orbit address! Was: ${address}`) }
+      if (!Utils.isOrbitAddress(address)) { throw new Error(`Address must be a valid orbitdb address! Was: ${address}`) }
 
-      await this.store.set(key, address)
-      console.debug(`[AddressStore#register] successfully registered ${key} with ${address} `)
+      await this._store.set(key, address)
+      console.debug(`[AddressStore#register] successfully registered ${key} for ${address} `)
 
       return key
     },
 
     find: function (key) {
-      if (!this.initialized) {
-        throw new Error("Can't query AddressStore before initialization!")
-      }
-      console.debug(`[AddressStore#find] called with key ${key}`)
+      if (!this.initialized)    { throw new Error("Can't query AddressStore before initialization!") }
+      if (!Utils.isString(key)) { throw new Error(`Key must be a string! Was: ${key}`) }
 
-      if (Utils.isString(key)) {
-
-        let address = this.store.get(key)
-        return address
-      } else {
-
-        throw new Error(`Key must be a string! Was ${key}`, key)
-      }
+      return this._store.get(key)
     },
 
     all: function () {
-      return this.store._index._index
+      return this._store._index._index
     },
 
     keys: function() {
-      let keys = Object.keys(this.store._index._index)
-      console.debug('[AddressStore#keys] found these keys: ', keys)
-
-      return keys
-    },
-
-    addresses: function () {
-      return this.store.all
+      return Object.keys(this._store._index._index)
     },
 
     has: function(key) {
       return this.keys().includes(key)
     },
 
+    values: function () {
+      return this._store.all
+    },
+
+    addresses: function () {
+      return this.values()
+    },
+
+    address: function () {
+      this._store.address.toString()
+    },
+
+    drop: function (cb) {
+      this._store.drop().then(() => {
+        return cb ? cb() : true
+      })
+    },
+
     on: function(event, cb) {
-      this.store.events.on(event, cb)
+      this._store.events.on(event, cb)
     },
 
     _debug: function () {
 
-      this.store.events.on('write', function (dbname, hash, entry) {
-        console.debug(`[AddressStore#write] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
+      this._store.events.on('write', function (dbname, hash, entry) {
+        console.debug(`[AddressStore] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
       })
 
-      this.store.events.on('replicated', function (dbname, length) {
-        console.debug(`[AddressStore#replicated] Synced with peer! ${dbname}! Length was:${ length }`)
+      this._store.events.on('replicated', function (dbname, length) {
+        console.debug(`[AddressStore] Synced with peer! ${dbname}! Length was:${ length }`)
       })
 
     }
   };
 
+  const unique = (elem, index, array) => {
+    return index === array.indexOf(elem)
+  }
+
   const arrayDifference = (first, second) => {
     return first.filter((elem) => second.indexOf(elem) < 0 );
-  };
+  }
 
   const onReplicated = (storeAddress) => {
     Utils.log(`Update in ${storeAddress}`)
@@ -207,7 +214,9 @@
     AddressStore.on("replicated", async () => {
 
       // find newly registered store
-      let newStores = arrayDifference(AddressStore.addresses(), [...currentReplicatedAddresses])
+      const uniqueAddresses = AddressStore.addresses().filter(unique)
+
+      let newStores = arrayDifference(uniqueAddresses, [...currentReplicatedAddresses])
       Utils.log(`New stores registered: ${newStores}`)
       console.log(newStores)
 
