@@ -40,11 +40,9 @@
           }
         };
 
-  const localRendezvousServer = '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star';
-
   // Mandatory settings to follow convention:
   // Always index by 'key', only allow docstores
-  const sharedStoreSettings = {
+  const SHARED_STORE_SETTINGS = {
     indexBy: 'key',
     maxHistory: -1,
     sync: true,
@@ -55,15 +53,18 @@
   const REGISTER_PREFIX = '$'
 
   // Prefix used to lessen probability of name collisions
-  const SAVE_NAME_PREFIX = "CCM."
+  const SAFE_NAME_PREFIX = "CCM."
 
   // Create aliases and overwrite logger if printing to web page is possible
-  document.addEventListener('DOMContentLoaded', function () {
-    if (document.getElementById('messages')) {
+  // and log level is set to debug.
+  if (window.LOG === 'debug') {
+    document.addEventListener('DOMContentLoaded', function () {
+      if (document.getElementById('messages')) {
 
-      window.console.debug = Utils.alias('log');
-    }
-  });
+        window.console.debug = Utils.alias('log');
+      }
+    });
+  }
 
   // Singelton
   const Utils = {
@@ -115,28 +116,21 @@
     get(key, cb) {
       let value = this._store.get(key).pop()
 
-      console.debug(`[StoreWrapper#get] Key: ${key}, value: ${value}`)
       return cb ? cb(value) : value;
     }
 
     set(doc, cb) {
       this._store.put(doc).then((hash) => {
-
-        console.debug(`[StoreWrapper#get] Key: ${doc.key}, value: ${doc}`)
+        console.debug(`[StoreWrapper#set] Set ${key}. Operation hash: ${hash}`)
         cb && cb(doc)
       })
     }
 
     del(key, cb) {
-      let doc  = this.get(key),
-          hash;
+      const doc  = this.get(key)
 
-      this._store.del(key).then(function (res){
-
-        return hash = res
-      }).then(function (hash) {
-
-        console.debug(`[StoreWrapper#del] Key: ${doc.key}, hash: ${hash}`)
+      this._store.del(key).then((hash) => {
+        console.debug(`[StoreWrapper#del] Deleted ${key}. Operation hash: ${hash}`)
         cb && cb(doc)
       })
     }
@@ -150,38 +144,41 @@
     }
 
     keys() {
-      let keys = Object.keys(this._store._index._index)
-      console.debug('[StoreWrapper#keys] found these keys: ', keys)
-
-      return keys
+      return Object.keys(this._store._index._index)
     }
 
     values() {
-      throw new Error('Not implemented')
+      return this.all()
     }
 
     first() {
-      return this._store.all[0]
+      return this.all()[0]
     }
 
     last() {
-      return this._store.all[this.length() - 1]
+      return this.all()[this.length() - 1]
     }
 
     address() {
       return this._store.address.toString()
     }
 
-    drop(cb) {
-      this._store.drop().then(function () {
+    source() {
+      return this.address()
+    }
 
-        console.debug(`[StoreWrapper#drop] store dropped`)
+    drop(cb) {
+      this._store.drop().then(() => {
         return cb ? cb() : true
       })
     }
 
+    clear(cb) {
+      this.drop(cb)
+    }
+
     on(event, cb) {
-      // These need to be mapped to easier names, like 'updated': 'replicated'
+      // These could be mapped to easier names, like 'update': 'replicated'
       const VALID_EVENTS = [
         'replicated',
         'replicate',
@@ -215,12 +212,10 @@
   // Singelton
   const AddressStore = {
     // public store using this name
-    name: "CCM.AddressStore",
+    name: SAFE_NAME_PREFIX + "AddressStore",
 
-    init: async function (ipfs) {
-      const defaultOptions = {
-        // directory: './addresses',
-        // path: './addresses',
+    init: async function (orbitdb) {
+      const ADDRESS_STORE_SETTINGS = {
         type: 'keyvalue',
         maxHistory: -1,
         sync: true,
@@ -228,76 +223,73 @@
         create: true
       }
 
-      this._ipfs = ipfs
-      this._orbit = new OrbitDB(this._ipfs, './adresses')
-      console.debug("AddressStore OrbitDB created ✔")
-
-      this.store = await this._orbit.open(this.name, defaultOptions)
-      await this.store.load()
+      this._orbitdb = orbitdb
+      this._store = await this._orbitdb.open(this.name, ADDRESS_STORE_SETTINGS)
+      await this._store.load()
 
       this.initialized = true
 
-      console.debug(`[AddressStore::init] finished with address ${this.store.address}`)
       return this;
     },
 
     register: async function (key, address) {
       if (!Utils.isString(key))           { throw new Error(`Key must be a string! Was: ${key}`) }
-      if (!Utils.isOrbitAddress(address)) { throw new Error(`Address must be a valid orbit address! Was: ${address}`) }
+      if (!Utils.isOrbitAddress(address)) { throw new Error(`Address must be a valid orbitdb address! Was: ${address}`) }
 
-      await this.store.set(key, address)
-      console.debug(`[AddressStore#register] successfully registered ${key} with ${address} `)
+      await this._store.set(key, address)
+      console.debug(`[AddressStore#register] successfully registered ${key} for ${address} `)
 
       return key
     },
 
     find: function (key) {
-      if (!this.initialized) {
-        throw new Error("Can't query AddressStore before initialization!")
-      }
-      console.debug(`[AddressStore#find] called with key ${key}`)
-      console.log("A Index", JSON.stringify(this.store._index._index, null, 2))
+      if (!this.initialized)    { throw new Error("Can't query AddressStore before initialization!") }
+      if (!Utils.isString(key)) { throw new Error(`Key must be a string! Was: ${key}`) }
 
-      if (Utils.isString(key)) {
-
-        let address = this.store.get(key)
-        return address
-      } else {
-
-        throw new Error(`Key must be a string! Was ${key}`, key)
-      }
+      return this._store.get(key)
     },
 
     all: function () {
-      return this.store._index._index
+      return this._store._index._index
     },
 
     keys: function() {
-      let keys = Object.keys(this.store._index._index)
-      console.debug('[AddressStore#keys] found these keys: ', keys)
-
-      return keys
-    },
-
-    addresses: function () {
-      return this.store.all
+      return Object.keys(this._store._index._index)
     },
 
     has: function(key) {
       return this.keys().includes(key)
     },
 
+    values: function () {
+      return this._store.all
+    },
+
+    addresses: function () {
+      return this.values()
+    },
+
+    address: function () {
+      this._store.address.toString()
+    },
+
+    drop: function (cb) {
+      this._store.drop().then(() => {
+        return cb ? cb() : true
+      })
+    },
+
     on: function(event, cb) {
-      this.store.events.on(event, cb)
+      this._store.events.on(event, cb)
     },
 
     _debug: function () {
 
-      this.store.events.on('write', function (dbname, hash, entry) {
+      this._store.events.on('write', function (dbname, hash, entry) {
         console.debug(`[AddressStore] Write  occured! ${dbname}! Entry was:${ JSON.stringify(entry, null, 2) }`)
       })
 
-      this.store.events.on('replicated', function (dbname, length) {
+      this._store.events.on('replicated', function (dbname, length) {
         console.debug(`[AddressStore] Synced with peer! ${dbname}! Length was:${ length }`)
       })
 
@@ -308,11 +300,10 @@
   const Controller = {
     initialized  : false,
     booted       : false,
-    _orbit       : null,
+    _orbitdb       : null,
     _ipfs        : null,
 
-    create: async function (name, options) {
-      console.debug(`Controller#create called with name ${name}`)
+    create: async function (name, public) {
       if (!this.initialized) {
         throw new Error(`Can't create a store without prior initialization!`)
 
@@ -323,28 +314,29 @@
         throw new Error(`Can't create a new store without a proper name! Name: ${name}`)
       }
 
-      let ops,
-          docs,
-          store;
+      let docs,
+          store,
+          settings;
 
-      const saveName = SAVE_NAME_PREFIX + name
+      const saferName = SAFE_NAME_PREFIX + name
 
       // Allow everybody to write to store?
-      if (options && options.public === true) {
-        ops = Object.assign({ write: ["*"] }, sharedStoreSettings)
+      if (public === true) {
+        settings = Object.assign({ write: ["*"] }, SHARED_STORE_SETTINGS)
 
       } else {
 
-        ops = Object.assign({ }, sharedStoreSettings)
+        // Clone settings
+        settings = Object.assign({ }, SHARED_STORE_SETTINGS)
       }
 
       // docs() implicitly creates a store if only name given
       // else it opens a store
-      docs = await this._orbit.docs(saveName, ops)
-      // await docs.load()
+      docs = await this._orbitdb.docs(saferName, settings)
+      await docs.load()
 
       store = new StoreWrapper(docs)
-      console.debug(`Store ${store.address()} created/loaded.`)
+      console.debug(`Created ${store.address()}`)
 
       return store;
     },
@@ -359,11 +351,11 @@
       let docs,
           store;
 
-      docs = await this._orbit.open(address, sharedStoreSettings)
+      docs = await this._orbitdb.open(address, SHARED_STORE_SETTINGS)
       await docs.load()
 
       store = new StoreWrapper(docs)
-      console.debug(`Store ${store.address()} opened`)
+      console.debug(`Opened ${store.address()}`)
 
       return store;
     },
@@ -379,12 +371,12 @@
           address;
 
       const createStore = async (name, public) => {
-        const ops = { public: true }
+        let access = true
 
         // Unless explicitly private all stores are public
-        if (public === false) { ops.public = false }
+        if (public === false) { access = false }
 
-        const store = await this.create(name, ops)
+        const store = await this.create(name, access)
         return store;
       }
 
@@ -394,25 +386,23 @@
         let   key;
         const address = store.address()
 
+        // Register name if type is a boolean
         if (Utils.isString(options.register)) {
           key = options.register
         } else {
           key = options.name
         }
 
-        console.log('[dispatch] trying register')
         await AddressStore.register(key, address)
       }
 
       const openRegisteredStore = async (key) => {
         if (!AddressStore.has(key)) {
-          throw new Error(`Can't open store. Address not registered or no peer with matching replica found! Key: ${key}`)
+          throw new Error(`Can't open store. Address not registered or no peer with matching replica connected! Key: ${key}`)
         }
 
         const address = AddressStore.find(key)
-        console.debug(`[openRegisteredStore] Found store registered as ${key}. Address is ${address}`)
-
-        const store = await this.open(address)
+        const store   = await this.open(address)
 
         return store
       }
@@ -421,11 +411,9 @@
       if (Utils.isString(options)) {
 
         if (options.startsWith(REGISTER_PREFIX)) {
-          console.debug('Opening registered store')
           store = await openRegisteredStore(options.slice(1))
 
         } else {
-
           store = await createStore(options)
         }
 
@@ -440,22 +428,11 @@
       return store;
     },
 
-    connect: function() {
-      this._ipfs.swarm.connect(localRendezvousServer, function (err){
-        if (err) {
-          console.debug(err)
-        }
-      })
-    },
-
     init: function (cb) {
       if (!this.booted) { this.booted = this._boot() }
 
       this.booted.then(() => {
-        this.initialized = true
-        console.debug("Initialization done ✔")
-
-        return cb ? cb(this) : true
+        cb && cb(this)
       })
     },
 
@@ -464,9 +441,14 @@
       if (!this.booted) {
         this._ipfs = await this._startIPFS()
 
-        this._orbit = new OrbitDB(this._ipfs)
-        console.debug("Controller OrbitDB created ✔")
+        this._orbitdb = new OrbitDB(this._ipfs)
+        console.debug("OrbitDB created ✔")
 
+        await AddressStore.init(this._orbitdb)
+-       console.debug("AddressStore loaded ✔")
+
+        this.initialized = true
+        console.debug("Initialization done ✔")
       }
     },
 
@@ -478,9 +460,6 @@
         ipfs.on('error', reject)
         ipfs.on('ready', () => {
           console.debug("IPFS node ready ✔")
-
-          AddressStore.init(ipfs)
-
           resolve(ipfs);
         })
       });
@@ -489,10 +468,13 @@
 
   // Wrap dispatch for callback style usage
   const dstore = function() {
-    const args     = Array.prototype.slice.call(arguments),
-          callback = args.pop();
+    const args     = Array.prototype.slice.call(arguments)
 
-    Controller.dispatch(...args).then(function (store) {
+    if (args.length < 2) { throw new Error('Arguments missing! Usage: dstore(object, callback)') }
+
+    const callback = args.pop();
+
+    Controller.dispatch(...args).then((store) => {
       callback(store)
     })
   }
@@ -504,24 +486,15 @@
     Controller.init(function () {
       window.ccm['dstore'] = dstore.bind(MODULE_SCOPE)
 
-      // FIXME: Use at least a timeout
-      // Better would be to get notified when the AddressStore
-      // is fully synced
-      // if (args.length !== 0) {
-      //   setTimeout(function (){
-
-      //     window.ccm.dstore(...args);
-      //   }, 1000)
-      // }
-      if (args.length !== 0) {
+      if (args.length > 1) {
         window.ccm.dstore(...args);
       }
     });
   }
 
   if (window.LOG === 'debug') {
-    window.C = Controller;
-    window.A = AddressStore;
+    window.CCM_ORBTI_CONTROLLER = Controller;
+    window.CCM_ADDRESS_STORE = AddressStore;
   }
 }())
 
