@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Replication BUG</title>
+
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/ipfs/0.29.1/index.js"></script> -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/ipfs/0.29.2/index.js"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ipfs/0.29.3/index.js"></script>
+
+  <!-- <script src="https://cdn.jsdelivr.net/npm/orbit-db@0.19.6/dist/dist/orbitdb.js"></script> -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/orbit-db@0.19.7/dist/dist/orbitdb.js"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/orbit-db@0.19.8/dist/dist/orbitdb.js"></script>
+
+  <script>
+    window.LOG = 'debug'
+
+    const ipfsConfig = {
+      repo: './ipfs',
+      config: {
+        Addresses: {
+          Swarm: [
+            // IPFS dev signal server
+            // Prefer websocket over webrtc
+            //
+            // Websocket:
+            // '/dns4/ws-star-signal-2.servep2p.com/tcp/443//wss/p2p-websocket-star',
+            '/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-websocket-star',
+            //
+            // local signal server
+            // '/ip4/127.0.0.1/tcp/4711/ws/p2p-websocket-star'
+            //
+            // WebRTC:
+            // '/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star',
+            // local signal server
+            // '/ip4/127.0.0.1/tcp/1337/ws/p2p-webrtc-star'
+          ]
+        }
+      },
+      EXPERIMENTAL: {
+        pubsub: true
+      }
+    };
+
+    let orbitdb = null
+
+    // Create IPFS instance
+    const ipfs = new Ipfs(ipfsConfig)
+
+    ipfs.on('error', (e) => console.error(e))
+
+    ipfs.on('ready', async () => {
+      orbitdb = new OrbitDB(ipfs)
+
+      window.ipfs = ipfs
+      window.orbitdb = orbitdb
+    })
+
+    async function createDB1(){
+      window.db1 = await orbitdb.docs('DOCS1', { write: ["*"]})
+      await db1.put({_id: 'db1-1', entry: 1})
+      await db1.put({_id: 'db1-2', entry: 2})
+    }
+
+    async function replicateDB1(){
+      window.db1 = await orbitdb.docs('DOCS1', { write: ["*"]})
+    }
+
+    function showDB1(){
+      console.log(db1.address.toString())
+      console.log(db1.all)
+    }
+
+    async function createDB2(){
+      window.db2 = await orbitdb.docs('DOCS2', { write: ["*"]})
+      await db2.put({_id: 'db2-1', entry: 1})
+      await db2.put({_id: 'db2-2', entry: 2})
+    }
+
+    async function replicateDB2(){
+      window.db2 = await orbitdb.docs('DOCS2', { write: ["*"]})
+    }
+
+    function showDB2(){
+      console.log(db2.address.toString())
+      console.log(db2.all)
+    }
+
+    async function WindowA() {
+      await createDB1()
+      await createDB2()
+
+      showDB1()
+      showDB2()
+    }
+
+    async function WindowB() {
+      await replicateDB1()
+      await replicateDB2()
+
+      // Replication on dev signal server takes some time
+      setTimeout(function(){
+
+        showDB1()
+        showDB2()
+      }, 5000)
+    }
+
+  </script>
+</head>
+<body>
+</body>
+</html>

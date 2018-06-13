@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CCM Collab</title>
+  <!-- Dependencies for now -->
+  <script src="../../lib/ipfs-0.28.2.js"></script>
+  <script src="../../lib/orbitdb-0.19.7.js"></script>
+
+  <!-- Load source files starting here -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js"></script>
+  <script src="../../src/ccm.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
+  <style>
+
+    #collab-container {
+      margin          : auto;
+      padding-top     : 30px;
+      width           : 600px;
+    }
+
+    #collab-controls {
+      display         : flex;
+      justify-content : space-between;
+      margin-bottom   : 12px;
+    }
+
+    #collab-editor {
+      width: 600px;
+    }
+
+    #collab-text {
+      box-sizing: border-box;
+      height : 500px;
+      margin : 0px;
+      resize : none;
+      width  : 100%;
+    }
+
+    #collab-markdown {
+      width: 600px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="collab-container">
+    <div id="collab-controls">
+
+      <span>
+        <select id="collab-selectFile">
+        </select>
+        <button id="collab-editorPreviewToggle">Preview</button>
+      </span>
+
+      <span>
+        <label for="collab-newFile">File:</label>
+        <input type="text" id="collab-newFile" name="newFile"/>
+        <button id="collab-newFileButton">New File</button>
+      </span>
+
+    </div>
+
+    <div id="collab-editor">
+      <textarea id="collab-text" name="textarea" ></textarea>
+    </div>
+
+    <div id="collab-markdown" class="hidden">
+    </div>
+  </div>
+
+  <script>
+    const newFileName         = document.getElementById('collab-newFile'),
+          newFileButton       = document.getElementById('collab-newFileButton'),
+          selectFile          = document.getElementById('collab-selectFile'),
+          textElement         = document.getElementById('collab-text'),
+
+          editorPreviewToggle = document.getElementById('collab-editorPreviewToggle'),
+
+          editorElement       = document.getElementById('collab-editor');
+          markdownElement     = document.getElementById('collab-markdown');
+
+          converter           = new showdown.Converter();
+
+    let store;
+
+    ccm.dstore("CCM.collab", (db) => {
+      window.db = db
+      store     = db
+
+      let fileNumber  = 0,
+          currentFile = null;
+
+      const updateFiles = () => {
+
+        const fileNames = store.keys();
+
+        // Empty selcet tag
+        selectFile.innerHTML = ''
+
+        fileNames.forEach((name) => {
+         const option = document.createElement('option')
+
+          option.value = name
+          option.text  = name
+          selectFile.appendChild(option)
+        })
+
+        fileNumber = fileNames.length
+
+        if (!currentFile && (fileNames.length > 0)) {
+          currentFile = fileNames[0]
+        }
+      }
+
+      const updateMarkdown = () => {
+        const md = store.get(currentFile).data;
+
+        markdownElement.innerHTML = converter.makeHtml(md);
+      }
+
+      const updateText = () => {
+        console.debug(`${ currentFile }`)
+        textElement.value = store.get(currentFile).data
+      }
+
+      const setCurrentFile = (file) => {
+        currentFile = file
+
+        updateText()
+        updateMarkdown()
+      }
+
+      // Listen to sync in dstore and write to #data
+      store.on('replicated', () => {
+        console.debug("[Replicated] updating state..")
+        if (fileNumber < store.length()) {
+          updateFiles()
+        }
+
+        if (!currentFile) {
+          console.debug('CurrentFile not set!')
+          return
+        }
+
+
+        if (!editorElement.classList.contains('hidden')) {
+          updateText()
+
+        } else if (!markdownElement.classList.contains('hidden')) {
+          updateMarkdown()
+        }
+      })
+
+      textElement.addEventListener('keyup', () => {
+        const editedText = textElement.value
+
+        store.set({ key: currentFile, data: editedText })
+      });
+
+      newFileButton.addEventListener('click', (e) => {
+        const file = newFileName.value
+
+        if (store.keys().includes(file)) { return }
+
+        store.set({key: file, data: ""}, (newFile) => {
+
+          updateFiles()
+          selectFile.value = newFile.key
+        })
+      })
+
+      editorPreviewToggle.addEventListener('click', (e) => {
+        const current = editorPreviewToggle.textContent
+
+        if (current === "Preview") {
+          editorPreviewToggle.textContent = "Editor"
+          updateMarkdown()
+        } else if (current === "Editor") {
+          editorPreviewToggle.textContent = "Preview"
+          updateText()
+        }
+
+        editorElement.classList.toggle('hidden')
+        markdownElement.classList.toggle('hidden')
+      })
+
+      selectFile.addEventListener('change', (e) => {
+        file = e.target.value;
+
+        setCurrentFile(file)
+      })
+
+      updateFiles()
+
+      if (store.first()) {
+        setCurrentFile(store.first().key)
+      }
+    })
+
+  </script>
+</body>
+</html>
