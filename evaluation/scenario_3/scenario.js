@@ -42,15 +42,7 @@ function startTyping(peer, delay) {
 
 
 function evaluateTimestamps() {
-  TIMESTAMPS = []
-
-  for(let i=0; i < number_replicated; i++){
-    TIMESTAMPS.push([db.get('benchmark')[i], REPLICATED[i]])
-  }
-
   MILLISECONDS = TIMESTAMPS.map((entries) => entries[1] - entries[0] )
-
-
 
   document.getElementById('average').innerHTML = getAverage()
   document.getElementById('median').innerHTML  = getMedian()
