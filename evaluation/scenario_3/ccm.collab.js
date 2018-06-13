@@ -83,7 +83,12 @@
         window.TEXTAREA = textElement
         window.TIMESTAMPS = []
 
+        window.START = new Date().valueOf()
         window.ccm.dstore(this.dstore, (db) => {
+
+          window.END = new Date().valueOf()
+          window.LOAD_TIME = (END - START) / 1000
+
           window.db = db
           store     = db
 

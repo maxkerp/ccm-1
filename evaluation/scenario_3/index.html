@@ -4,13 +4,12 @@
   <meta charset="utf-8">
   <title>Scenario 3</title>
   <!-- Dependencies for now -->
-  <script src="./jquery-3.3.1.js"></script>
+  <script src="./memorySizeOfObject.js"></script>
   <script src="../../lib/ipfs-0.29.2.js"></script>
   <script src="../../lib/orbitdb-0.19.7.js"></script>
 
   <!-- Load source files starting here -->
   <script>
-    window.LOG = 'debug'
   </script>
   <script src="../../src/ccm.js"></script>
   <script src="../../src/orbit-ccm-deactivated-addressstore.js"></script>
@@ -33,15 +32,21 @@
       <button id="typePeerA">Start Typing PeerA</button>
       <button id="typePeerB">Start Typing PeerB</button>
       <button id="evaluateTimestamps">Evaluate Timestamps</button>
+      <button id="dropButton">Drop Datastore</button>
+      <button id="loadButton">Get Load Time</button>
+      <input id="delayInput" >Input Delay</input>
     </div>
 
     <div id="values">
-      <p>Latency</p>
+      <p></p>
       <dl>
-        <dt>Average:</dt><dd id="average"></dd>
-        <dt>Median:</dt><dd id="median"></dd>
-      </dl>
+        <dt>Latency Average (ms):</dt><dd id="average"></dd>
+        <dt>Latency Median  (ms):</dt><dd id="median"></dd>
     
+        <dt>Time to load store (s)</dt><dd id="loadTime"></dd>
+
+        <dt>Approximate memory usage of store:</dt><dd id="memory"></dd>
+      </dl>
     </div>
 
     <div id="component">

@@ -2,22 +2,36 @@
 const startComponentButton     = document.getElementById('componentButton'),
       typePeerAButton          = document.getElementById('typePeerA'),
       typePeerBButton          = document.getElementById('typePeerB'),
-      evaluateTimestampsButton = document.getElementById('evaluateTimestamps')
+      evaluateTimestampsButton = document.getElementById('evaluateTimestamps'),
+      dropButton               = document.getElementById('dropButton'),
+      loadButton               = document.getElementById('loadButton'),
+      delayInput               = document.getElementById('delayInput')
 
 startComponentButton.addEventListener('click', (e) => {
   startCollab()
 })
 
 typePeerAButton.addEventListener('click', (e) => {
-  startTyping('', 50)
+  delay = Number.parseInt(delayInput.value)
+  startTyping('A', delay)
 })
 
 typePeerBButton.addEventListener('click', (e) => {
-  startTyping('', 50)
+  delay = Number.parseInt(delayInput.value)
+  startTyping('B', delay)
 })
 
 evaluateTimestampsButton.addEventListener('click', (e) => {
   evaluateTimestamps()
+})
+
+dropButton.addEventListener('click', (e) => {
+  db.drop()
+})
+
+loadButton.addEventListener('click', (e) => {
+  document.getElementById('loadTime').innerHTML = window.LOAD_TIME
+  document.getElementById('memory').innerHTML = memorySizeOf(db._store._oplog._entryIndex)
 })
 
 function startCollab() {
@@ -34,12 +48,8 @@ function startTyping(peer, delay) {
   } else if (peer === 'B') {
 
     typeText(item, window.text_peerB, delay);
-  } else {
-
-    typeText(item, window.text_test, delay);
   }
 };
-
 
 function evaluateTimestamps() {
   MILLISECONDS = TIMESTAMPS.map((entries) => entries[1] - entries[0] )
@@ -85,8 +95,6 @@ function typeText(item, text, delay ) {
   }
 }
 
-window.text_test = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.   Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet,"
-
 window.text_peerA = `
 Preamble
 
@@ -110,42 +118,50 @@ Now, Therefore THE GENERAL ASSEMBLY proclaims THIS UNIVERSAL DECLARATION OF HUMA
 window.text_peerB = `
 Article 1.
  
- 
 All human beings are born free and equal in dignity and rights. They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
+
+
 Article 2.
 
-
 Everyone is entitled to all the rights and freedoms set forth in this Declaration, without distinction of any kind, such as race, colour, sex, language, religion, political or other opinion, national or social origin, property, birth or other status. Furthermore, no distinction shall be made on the basis of the political, jurisdictional or international status of the country or territory to which a person belongs, whether it be independent, trust, non-self-governing or under any other limitation of sovereignty.
+
+
 Article 3.
 
-
 Everyone has the right to life, liberty and security of person.
+
+
 Article 4.
 
-
 No one shall be held in slavery or servitude; slavery and the slave trade shall be prohibited in all their forms.
+
+
 Article 5.
 
-
 No one shall be subjected to torture or to cruel, inhuman or degrading treatment or punishment.
+
+
 Article 6.
 
-
 Everyone has the right to recognition everywhere as a person before the law.
+
+
 Article 7.
 
-
 All are equal before the law and are entitled without any discrimination to equal protection of the law. All are entitled to equal protection against any discrimination in violation of this Declaration and against any incitement to such discrimination.
+
+
 Article 8.
 
-
 Everyone has the right to an effective remedy by the competent national tribunals for acts violating the fundamental rights granted him by the constitution or by law.
+
+
 Article 9.
 
-
 No one shall be subjected to arbitrary arrest, detention or exile.
-Article 10.
 
+
+Article 10.
 
 Everyone is entitled in full equality to a fair and public hearing by an independent and impartial tribunal, in the determination of his rights and obligations and of any criminal charge against him.
 `
