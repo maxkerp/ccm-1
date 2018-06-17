@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Scenario 1</title>
+  <title>Scenario 2 Device A</title>
   <!-- Dependencies for now -->
   <script src="../memorySizeOfObject.js"></script>
   <script src="../../lib/ipfs-0.29.2.js"></script>
@@ -12,10 +12,8 @@
   <script>
   </script>
   <script src="../../src/ccm.js"></script>
-
-  <!-- Uncomment the offline version to see, that it could be working -->
-  <!-- <script src="../../src/orbit-ccm.js"></script> -->
-  <script src="../../src/orbit-ccm-offline.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
+  <!-- <script src="../../src/orbit-ccm-deactivated-addressstore.js"></script> -->
   <style>
 
     #container {
@@ -32,7 +30,6 @@
   <div id="container">
     <div id="controls">
       <button id="createButton">Create Store</button>
-      <button id="openButton">Open Store</button>
       <button id="dropButton">Drop Datastore</button>
       <button id="loadButton">Get Load Time</button>
     </div>
@@ -53,14 +50,13 @@
 
   <script>
     const createButton = document.getElementById('createButton'),
-          openButton   = document.getElementById('openButton'),
           dropButton   = document.getElementById('dropButton'),
           loadButton   = document.getElementById('loadButton');
 
     createButton.addEventListener('click', (e) => {
       window.START = new Date().valueOf()
 
-      ccm.dstore('scenario_1', (store) => {
+      ccm.dstore('scenario_2', (store) => {
         window.END = new Date().valueOf()
         window.LOAD_TIME = (END - START) / 1000
         window.STORE = store
@@ -76,26 +72,9 @@
 
         setTimeout(() => {
           document.getElementById('result').textContent = JSON.stringify(store.all(), null, 2)
-        }, 3000)
+        }, 2000)
       })
     })
-
-    openButton.addEventListener('click', (e) => {
-      window.START = new Date().valueOf()
-
-      ccm.dstore('scenario_1', (store) => {
-        window.END = new Date().valueOf()
-        window.LOAD_TIME = (END - START) / 1000
-        window.STORE = store
-
-        result = document.getElementById('component')
-
-        setTimeout(() => {
-          document.getElementById('result').textContent = JSON.stringify(store.all(), null, 2)
-        }, 3000)
-      })
-    })
-
 
     dropButton.addEventListener('click', (e) => {
       STORE.drop()

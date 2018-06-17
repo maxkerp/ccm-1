@@ -85,8 +85,7 @@ function typeText(item, text, delay ) {
       return new Promise((resolve) => {
         setTimeout(function () {
 
-          const text_slice = text.slice(0,i)
-          item.value = text_slice
+          item.value += text.charAt(i)
           item.dispatchEvent(new KeyboardEvent('keyup'))
           resolve();
         }, delay)

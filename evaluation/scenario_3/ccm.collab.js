@@ -139,11 +139,13 @@
           store.on('replicated', () => {
             console.debug("[Replicated] updating state..")
 
-            // Create sets of written/replicated timestamps 
-            if(currentFile) {
+            // Benchmarking how long it takes for a store to replicate data
+            // Either this or the 'write' eventListener can be used ad a time.
+            // window.LAST_REPLICATED = new Date().valueOf()
+            // if(currentFile) {
 
-              window.TIMESTAMPS.push([store.get(currentFile).written, new Date().valueOf()])
-            }
+            //   window.TIMESTAMPS.push([store.get(currentFile).written, new Date().valueOf()])
+            // }
 
             if (fileNumber < store.length()) {
               updateFiles()
@@ -160,6 +162,17 @@
 
             } else if (!markdownElement.classList.contains('hidden')) {
               updateMarkdown()
+            }
+          })
+
+          // Benchmarking how long it takes to add an operation to the op-log
+          store.on('write', () => {
+            console.debug("[Written] op-log updated..")
+
+            // Create sets of written/replicated timestamps 
+            window.LAST_REPLICATED = new Date().valueOf()
+            if(currentFile) {
+              window.TIMESTAMPS.push([store.get(currentFile).written, new Date().valueOf()])
             }
           })
 

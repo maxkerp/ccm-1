@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Scenario 1</title>
+  <title>Scenario 2 Device B</title>
   <!-- Dependencies for now -->
   <script src="../memorySizeOfObject.js"></script>
   <script src="../../lib/ipfs-0.29.2.js"></script>
@@ -10,12 +10,11 @@
 
   <!-- Load source files starting here -->
   <script>
+    window.LOG = "debug"
   </script>
   <script src="../../src/ccm.js"></script>
-
-  <!-- Uncomment the offline version to see, that it could be working -->
-  <!-- <script src="../../src/orbit-ccm.js"></script> -->
-  <script src="../../src/orbit-ccm-offline.js"></script>
+  <script src="../../src/orbit-ccm.js"></script>
+  <!-- <script src="../../src/orbit-ccm-deactivated-addressstore.js"></script> -->
   <style>
 
     #container {
@@ -31,8 +30,7 @@
 <body>
   <div id="container">
     <div id="controls">
-      <button id="createButton">Create Store</button>
-      <button id="openButton">Open Store</button>
+      <button id="replicateButton">Replicate Store</button>
       <button id="dropButton">Drop Datastore</button>
       <button id="loadButton">Get Load Time</button>
     </div>
@@ -52,38 +50,14 @@
   </div>
 
   <script>
-    const createButton = document.getElementById('createButton'),
-          openButton   = document.getElementById('openButton'),
-          dropButton   = document.getElementById('dropButton'),
-          loadButton   = document.getElementById('loadButton');
+    const replicateButton = document.getElementById('replicateButton'),
+          dropButton      = document.getElementById('dropButton'),
+          loadButton      = document.getElementById('loadButton');
 
-    createButton.addEventListener('click', (e) => {
+    replicateButton.addEventListener('click', (e) => {
       window.START = new Date().valueOf()
 
-      ccm.dstore('scenario_1', (store) => {
-        window.END = new Date().valueOf()
-        window.LOAD_TIME = (END - START) / 1000
-        window.STORE = store
-
-
-        store.set({key: '001', attribute: 1, property: 2}, function () {
-
-          store.set({key: '002', attribute: 1, property: 2}, function () {
-
-            store.set({key: '003', attribute: 1, property: 2})
-          })
-        })
-
-        setTimeout(() => {
-          document.getElementById('result').textContent = JSON.stringify(store.all(), null, 2)
-        }, 3000)
-      })
-    })
-
-    openButton.addEventListener('click', (e) => {
-      window.START = new Date().valueOf()
-
-      ccm.dstore('scenario_1', (store) => {
+      ccm.dstore('scenario_2', (store) => {
         window.END = new Date().valueOf()
         window.LOAD_TIME = (END - START) / 1000
         window.STORE = store
@@ -92,10 +66,9 @@
 
         setTimeout(() => {
           document.getElementById('result').textContent = JSON.stringify(store.all(), null, 2)
-        }, 3000)
+        }, 5000)
       })
     })
-
 
     dropButton.addEventListener('click', (e) => {
       STORE.drop()
